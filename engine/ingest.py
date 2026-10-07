@@ -16,6 +16,7 @@ import os
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
+from engine import analyzer
 from engine.storage import init_db, insert_telemetry
 
 load_dotenv()
@@ -66,9 +67,7 @@ def on_message(client, userdata, msg):
     insert_telemetry(device_id=device_id, sensor=sensor, value=value, unit=unit, ts=ts)
     log.info("Télémétrie enregistrée : %s/%s = %s", device_id, sensor, value)
 
-    # TODO (prochaine étape) : une fois la baseline construite (engine/model.py),
-    # appeler ici l'évaluation de l'anomalie pour ce message et déclencher une
-    # alerte via engine.storage.insert_alert() si l'écart est significatif.
+    analyzer.evaluate(device_id)
 
 
 def build_client() -> mqtt.Client:

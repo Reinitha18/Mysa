@@ -41,12 +41,25 @@ mysa/
 
 L'API est alors disponible sur http://127.0.0.1:8000 (documentation interactive sur /docs).
 
+## Tester la boucle complète (baseline + détection)
+
+Avec Mosquitto local lancé et `python -m engine.ingest` dans un terminal,
+lance dans un autre terminal :
+```
+python scripts/simulate_device.py
+```
+Ce script publie 25 messages "normaux" (de quoi construire une baseline),
+puis un message franchement anormal. Le terminal de l'ingestion doit afficher
+la progression de l'apprentissage, puis une alerte sur le dernier message.
+Vérifiable aussi via http://127.0.0.1:8000/api/alerts.
+
 ## État d'avancement
 
 - [x] Moteur d'ingestion MQTT -> base de données locale
 - [x] API de consultation (appareils, alertes)
-- [ ] Extraction de caractéristiques comportementales (engine/features.py — squelette à compléter)
-- [ ] Modèle de détection d'anomalies (engine/model.py — squelette à compléter)
+- [x] Extraction de caractéristiques comportementales (engine/features.py)
+- [x] Modèle de détection d'anomalies, baseline par appareil (engine/model.py)
+- [x] Orchestration baseline -> détection -> alerte (engine/analyzer.py)
 - [ ] Dashboard React
 - [ ] Firmware ESP32
 - [ ] Scénarios du simulateur d'attaque

@@ -32,6 +32,10 @@ def _model_path(device_id: str) -> str:
     return os.path.join(MODELS_DIR, f"{device_id}.joblib")
 
 
+def has_baseline(device_id: str) -> bool:
+    return os.path.exists(_model_path(device_id))
+
+
 def _to_vector(features: dict) -> list:
     return [features.get(key, 0.0) for key in FEATURE_ORDER]
 
