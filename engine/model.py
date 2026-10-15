@@ -1,12 +1,14 @@
 """
-Détection d'anomalies comportementales : un modèle Isolation Forest est
-entraîné séparément pour chaque appareil, sur ses propres caractéristiques
-(engine/features.py). C'est ce qui permet à chaque appareil d'avoir sa propre
-notion de "normal" plutôt qu'un seuil unique pour tout le foyer (voir
-chapitre 5.2 du mémoire).
+Modèle LOCAL de détection d'anomalies : un Isolation Forest par flux capteur
+(appareil + capteur), appris sur la télémétrie réelle de ce flux avec le jeu
+complet de caractéristiques (engine/features.py : LOCAL_FEATURES).
 
-Chaque modèle est sauvegardé sur disque (engine/models/<device_id>.joblib)
-pour ne pas avoir à ré-apprendre la baseline à chaque redémarrage.
+Isolation Forest ne se « fine-tune » pas (pas de partial_fit) : l'affinage
+consiste à ré-entraîner périodiquement le modèle sur une fenêtre glissante des
+échantillons récents jugés normaux (voir engine/analyzer.py).
+
+Chaque modèle est sauvegardé (engine/models/<clé>.joblib) pour survivre à un
+redémarrage du moteur.
 """
 
 import os
@@ -15,56 +17,44 @@ import joblib
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
+from engine.features import LOCAL_FEATURES
+
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-FEATURE_ORDER = [
-    "message_count",
-    "mean_interval_s",
-    "std_interval_s",
-    "mean_value",
-    "distinct_sensors",
-    "seconds_since_last_message",
-]
+MIN_TRAIN_SAMPLES = 20
 
 
-def _model_path(device_id: str) -> str:
-    return os.path.join(MODELS_DIR, f"{device_id}.joblib")
+def _model_path(key: str) -> str:
+    return os.path.join(MODELS_DIR, f"{key}.joblib")
 
 
-def has_baseline(device_id: str) -> bool:
-    return os.path.exists(_model_path(device_id))
+def has_baseline(key: str) -> bool:
+    return os.path.exists(_model_path(key))
 
 
-def _to_vector(features: dict) -> list:
-    return [features.get(key, 0.0) for key in FEATURE_ORDER]
+def _to_frame(rows: list[dict]) -> pd.DataFrame:
+    return pd.DataFrame([[r[c] for c in LOCAL_FEATURES] for r in rows], columns=LOCAL_FEATURES)
 
 
-def train_baseline(device_id: str, feature_history: list[dict]) -> bool:
-    """Entraîne la baseline d'un appareil à partir d'un historique de vecteurs
-    de caractéristiques (plusieurs appels à extract_features dans le temps).
-    Retourne False si l'historique est encore insuffisant."""
-    if len(feature_history) < 20:
+def train_baseline(key: str, feature_history: list[dict]) -> bool:
+    """(Ré)entraîne le modèle local du flux. False si historique insuffisant."""
+    if len(feature_history) < MIN_TRAIN_SAMPLES:
         return False
-
-    X = pd.DataFrame([_to_vector(f) for f in feature_history], columns=FEATURE_ORDER)
     model = IsolationForest(n_estimators=100, contamination=0.05, random_state=42)
-    model.fit(X)
-    joblib.dump(model, _model_path(device_id))
+    model.fit(_to_frame(feature_history))
+    joblib.dump(model, _model_path(key))
     return True
 
 
-def score(device_id: str, features: dict) -> dict | None:
-    """Évalue un nouveau vecteur de caractéristiques par rapport à la
-    baseline de l'appareil. Retourne None si aucune baseline n'existe encore.
-    `is_anomaly` vaut True si l'écart est jugé significatif."""
-    path = _model_path(device_id)
+def score(key: str, features: dict) -> dict | None:
+    """Évalue un vecteur par rapport au modèle local (None si pas de modèle)."""
+    path = _model_path(key)
     if not os.path.exists(path):
         return None
-
     model = joblib.load(path)
-    X = pd.DataFrame([_to_vector(features)], columns=FEATURE_ORDER)
-    raw_score = model.decision_function(X)[0]  # positif = normal, négatif = anormal
-    is_anomaly = model.predict(X)[0] == -1
-
-    return {"is_anomaly": bool(is_anomaly), "score": float(raw_score)}
+    X = _to_frame([features])
+    return {
+        "is_anomaly": bool(model.predict(X)[0] == -1),
+        "score": float(model.decision_function(X)[0]),
+    }

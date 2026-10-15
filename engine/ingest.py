@@ -28,6 +28,8 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", "8883"))
 MQTT_USER = os.getenv("MQTT_USER")
 MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 MQTT_USE_TLS = os.getenv("MQTT_USE_TLS", "true").lower() == "true"
+# Certificat de l'autorité (CA) privée qui a signé le certificat du broker.
+MQTT_CA_CERT = os.getenv("MQTT_CA_CERT") or None
 
 TOPIC_FILTER = "home/#"
 
@@ -67,7 +69,7 @@ def on_message(client, userdata, msg):
     insert_telemetry(device_id=device_id, sensor=sensor, value=value, unit=unit, ts=ts)
     log.info("Télémétrie enregistrée : %s/%s = %s", device_id, sensor, value)
 
-    analyzer.evaluate(device_id)
+    analyzer.evaluate(device_id, sensor)
 
 
 def build_client() -> mqtt.Client:
@@ -75,7 +77,7 @@ def build_client() -> mqtt.Client:
     if MQTT_USER:
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
     if MQTT_USE_TLS:
-        client.tls_set()
+        client.tls_set(ca_certs=MQTT_CA_CERT)
     client.on_connect = on_connect
     client.on_message = on_message
     return client

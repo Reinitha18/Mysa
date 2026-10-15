@@ -26,3 +26,6 @@ dashboard/dist/
 # Système
 .DS_Store
 Thumbs.db
+
+# Datasets publics (téléchargés localement, non versionnés)
+data/public/*.csv

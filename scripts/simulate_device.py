@@ -21,6 +21,8 @@ HOST = "127.0.0.1"
 PORT = 1883
 DEVICE_ID = "esp32-sec-01"
 TOPIC = f"home/{DEVICE_ID}/pir"
+N_NORMAL = 150
+DELAY_S = 0.2
 
 
 def publish(client, value):
@@ -32,12 +34,13 @@ def main():
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.connect(HOST, PORT)
 
-    print("Publication de 25 messages 'normaux' (un par seconde)...")
+    print(f"Publication de {N_NORMAL} messages 'normaux' (un toutes les {DELAY_S} s)...")
     print("Regarde le terminal de 'python -m engine.ingest' : il doit afficher")
-    print("la progression de la baseline (x/20 échantillons).")
-    for _ in range(25):
+    print("la progression de la baseline (x/20 échantillons) ; sans modèle de référence,")
+    print("il faut une fenêtre de 20 messages puis ~100 messages pour 20 échantillons.")
+    for _ in range(N_NORMAL):
         publish(client, random.choice([0, 1]))
-        time.sleep(1)
+        time.sleep(DELAY_S)
 
     print("\nPublication d'un message 'anormal' (valeur hors norme pour un PIR)...")
     publish(client, 999)

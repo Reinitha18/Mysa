@@ -95,17 +95,18 @@ def list_devices() -> list[dict]:
         return [dict(row) for row in rows]
 
 
-def get_history(device_id: str, limit: int = 200) -> list[dict]:
+def get_history(device_id: str, limit: int = 200, sensor: str | None = None) -> list[dict]:
+    """Derniers messages d'un appareil (les plus récents en premier), éventuellement
+    restreints à un seul capteur."""
+    query = "SELECT sensor, value, unit, ts FROM telemetry WHERE device_id = ?"
+    params: list = [device_id]
+    if sensor:
+        query += " AND sensor = ?"
+        params.append(sensor)
+    query += " ORDER BY ts DESC LIMIT ?"
+    params.append(limit)
     with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT sensor, value, unit, ts FROM telemetry
-            WHERE device_id = ?
-            ORDER BY ts DESC
-            LIMIT ?
-            """,
-            (device_id, limit),
-        ).fetchall()
+        rows = conn.execute(query, params).fetchall()
         return [dict(row) for row in rows]
 
 
