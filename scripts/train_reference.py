@@ -30,28 +30,59 @@ from engine.features import PORTABLE_FEATURES, WINDOW, window_features  # noqa: 
 from engine.reference import REFERENCE_DIR  # noqa: E402
 
 
+def to_epoch(df: pd.DataFrame, ts_col: str) -> pd.Series:
+    """Horodatage en secondes. Accepte une colonne epoch numérique, ou les
+    colonnes date + time des fichiers TON_IoT (ex. 31-Mar-19 / 12:36:52)."""
+    if ts_col in df.columns:
+        ts = pd.to_numeric(df[ts_col], errors="coerce")
+        if ts.isna().mean() <= 0.5:
+            return ts
+    if {"date", "time"} <= set(df.columns):
+        months = {m: i for i, m in enumerate(
+            ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
+        parts = df["date"].astype(str).str.strip().str.split("-", expand=True)
+        if parts.shape[1] == 3:  # format JJ-Mon-AA, indépendant de la langue du système
+            day = pd.to_numeric(parts[0], errors="coerce")
+            mon = parts[1].str.lower().str[:3].map(months)
+            year = pd.to_numeric(parts[2], errors="coerce")
+            year = year.where(year >= 100, 2000 + year)
+            dt = pd.to_datetime(pd.DataFrame({"year": year, "month": mon, "day": day}), errors="coerce")
+            dt = dt + pd.to_timedelta(df["time"].astype(str), errors="coerce")
+            if dt.isna().mean() <= 0.5:
+                return (dt - pd.Timestamp("1970-01-01")).dt.total_seconds()
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dt = pd.to_datetime(df["date"].astype(str) + " " + df["time"].astype(str), errors="coerce")
+        return (dt - pd.Timestamp("1970-01-01")).dt.total_seconds()
+    raise SystemExit(f"Aucun horodatage exploitable : colonne '{ts_col}' ou date+time absentes. "
+                     f"Colonnes du fichier : {list(df.columns)}")
+
+
 def load_series(csv_path: str, value_col: str, ts_col: str, label_col: str):
     df = pd.read_csv(csv_path)
-    ts = pd.to_numeric(df[ts_col], errors="coerce")
-    if ts.isna().mean() > 0.5:  # pas de epoch numérique : on parse date + time
-        ts = pd.to_datetime(df["date"].astype(str) + " " + df["time"].astype(str),
-                            errors="coerce").astype("int64") / 1e9
+    for col in (value_col, label_col):
+        if col not in df.columns:
+            raise SystemExit(f"Colonne '{col}' introuvable. Colonnes du fichier : {list(df.columns)}")
+    ts = to_epoch(df, ts_col)
     values = pd.to_numeric(df[value_col], errors="coerce")
     if values.isna().mean() > 0.5:  # valeurs textuelles (open/closed, on/off...) -> codes
         values = pd.Series(pd.factorize(df[value_col].astype(str), sort=True)[0], index=df.index)
     out = pd.DataFrame({"ts": ts, "value": values, "label": pd.to_numeric(df[label_col], errors="coerce")})
-    return out.dropna().sort_values("ts").reset_index(drop=True)
+    # Tri STABLE : à horodatage égal, l'ordre du fichier est conservé.
+    return out.dropna().sort_values("ts", kind="stable").reset_index(drop=True)
 
 
-def make_windows(df: pd.DataFrame, stride: int):
+def make_windows(df: pd.DataFrame, stride: int, features=None):
     """Fenêtres de WINDOW lignes consécutives -> (X portable, part de lignes d'attaque)."""
+    features = features or PORTABLE_FEATURES
     rows, attack_share = [], []
     for start in range(0, len(df) - WINDOW + 1, stride):
         w = df.iloc[start:start + WINDOW]
         f = window_features(w["ts"].to_numpy(), w["value"].to_numpy())
-        rows.append([f[c] for c in PORTABLE_FEATURES])
+        rows.append([f[c] for c in features])
         attack_share.append(float(w["label"].mean()))
-    return pd.DataFrame(rows, columns=PORTABLE_FEATURES), np.array(attack_share)
+    return pd.DataFrame(rows, columns=features), np.array(attack_share)
 
 
 def main():

@@ -1,0 +1,16 @@
+{
+  "category": "ouverture",
+  "dataset": "IoT_Garage_Door.csv",
+  "value_col": "door_state",
+  "window": 20,
+  "features": [
+    "mean_abs_delta",
+    "std_value",
+    "unique_ratio"
+  ],
+  "n_windows_train": 19620,
+  "n_windows_test_normal": 4906,
+  "n_windows_test_attack": 3881,
+  "false_positive_rate": 0.03465144720750102,
+  "detection_rate": 0.0260242205617109
+}

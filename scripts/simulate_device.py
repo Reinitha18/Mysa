@@ -18,7 +18,7 @@ import time
 import paho.mqtt.client as mqtt
 
 HOST = "127.0.0.1"
-PORT = 1883
+PORT = 18830
 DEVICE_ID = "esp32-sec-01"
 TOPIC = f"home/{DEVICE_ID}/pir"
 N_NORMAL = 150

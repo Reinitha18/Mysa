@@ -1,0 +1,16 @@
+{
+  "category": "mouvement",
+  "dataset": "IoT_Motion_Light.csv",
+  "value_col": "motion_status",
+  "window": 20,
+  "features": [
+    "mean_abs_delta",
+    "std_value",
+    "unique_ratio"
+  ],
+  "n_windows_train": 15416,
+  "n_windows_test_normal": 3854,
+  "n_windows_test_attack": 3258,
+  "false_positive_rate": 0.052153606642449404,
+  "detection_rate": 0.021485573971761818
+}
