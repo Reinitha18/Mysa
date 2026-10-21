@@ -60,17 +60,24 @@ def to_epoch(df: pd.DataFrame, ts_col: str) -> pd.Series:
 
 
 def load_series(csv_path: str, value_col: str, ts_col: str, label_col: str):
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, low_memory=False)
     for col in (value_col, label_col):
         if col not in df.columns:
             raise SystemExit(f"Colonne '{col}' introuvable. Colonnes du fichier : {list(df.columns)}")
     ts = to_epoch(df, ts_col)
     values = pd.to_numeric(df[value_col], errors="coerce")
     if values.isna().mean() > 0.5:  # valeurs textuelles (open/closed, on/off...) -> codes
-        values = pd.Series(pd.factorize(df[value_col].astype(str), sort=True)[0], index=df.index)
+        codes, _ = pd.factorize(df[value_col], sort=True)  # valeur manquante -> -1
+        values = pd.Series(np.where(codes < 0, np.nan, codes), index=df.index)
     out = pd.DataFrame({"ts": ts, "value": values, "label": pd.to_numeric(df[label_col], errors="coerce")})
+    n_total = len(out)
+    miss = {"horodatage": int(out["ts"].isna().sum()), "valeur": int(out["value"].isna().sum()),
+            "étiquette": int(out["label"].isna().sum())}
+    out = out.dropna()
+    print(f"Lignes lues : {n_total} ; écartées (donnée manquante) : {n_total - len(out)} "
+          f"[manquants — horodatage : {miss['horodatage']}, valeur : {miss['valeur']}, étiquette : {miss['étiquette']}]")
     # Tri STABLE : à horodatage égal, l'ordre du fichier est conservé.
-    return out.dropna().sort_values("ts", kind="stable").reset_index(drop=True)
+    return out.sort_values("ts", kind="stable").reset_index(drop=True)
 
 
 def make_windows(df: pd.DataFrame, stride: int, features=None):
@@ -85,6 +92,26 @@ def make_windows(df: pd.DataFrame, stride: int, features=None):
     return pd.DataFrame(rows, columns=features), np.array(attack_share)
 
 
+def split_indices(attack_share: np.ndarray, seed: int = 42):
+    """Découpage des fenêtres : 80 % des fenêtres normales pour l'entraînement,
+    20 % pour le test ; fenêtres d'attaque = au moins la moitié de lignes d'attaque.
+    Partagé avec eval_injection.py pour garantir les mêmes fenêtres de test."""
+    normal_idx = np.where(attack_share == 0)[0]
+    attack_idx = np.where(attack_share >= 0.5)[0]
+    rng = np.random.default_rng(seed)
+    rng.shuffle(normal_idx)
+    cut = int(0.8 * len(normal_idx))
+    return normal_idx[:cut], normal_idx[cut:], attack_idx
+
+
+def check_pairing(category: str, csv_path: str, force: bool):
+    """Évite d'entraîner une catégorie avec le fichier d'une autre (écrasement du modèle)."""
+    expected = CATEGORY_DATASETS[category]["file"]
+    if os.path.basename(csv_path) != expected and not force:
+        raise SystemExit(f"Catégorie '{category}' attendue avec '{expected}', mais fichier '{os.path.basename(csv_path)}' "
+                         "fourni. Vérifie la commande (ou ajoute --force si c'est voulu).")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--category", required=True, choices=sorted(CATEGORY_DATASETS))
@@ -93,19 +120,16 @@ def main():
     ap.add_argument("--ts-col", default="ts")
     ap.add_argument("--label-col", default="label")
     ap.add_argument("--contamination", type=float, default=0.05)
+    ap.add_argument("--force", action="store_true", help="autorise un fichier différent du dataset prévu")
     args = ap.parse_args()
+    check_pairing(args.category, args.csv, args.force)
 
     value_col = args.value_col or CATEGORY_DATASETS[args.category]["value_col"]
     df = load_series(args.csv, value_col, args.ts_col, args.label_col)
     # Windows non chevauchantes : évite des échantillons quasi identiques.
     X, attack = make_windows(df, stride=WINDOW)
 
-    normal_idx = np.where(attack == 0)[0]
-    attack_idx = np.where(attack >= 0.5)[0]
-    rng = np.random.default_rng(42)
-    rng.shuffle(normal_idx)
-    cut = int(0.8 * len(normal_idx))
-    train_idx, test_normal_idx = normal_idx[:cut], normal_idx[cut:]
+    train_idx, test_normal_idx, attack_idx = split_indices(attack)
 
     model = IsolationForest(n_estimators=100, contamination=args.contamination, random_state=42)
     model.fit(X.iloc[train_idx])

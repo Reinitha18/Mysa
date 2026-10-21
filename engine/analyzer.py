@@ -31,7 +31,9 @@ from collections import deque
 from engine import features as feat
 from engine import model, reference
 from engine.categories import categorize
-from engine.storage import insert_alert
+from datetime import datetime, timezone
+
+from engine.storage import insert_alert, upsert_stream
 
 log = logging.getLogger("mysa.analyzer")
 
@@ -56,14 +58,19 @@ def _get_state(key: str, sensor: str) -> dict:
             "since_fit": 0,
             "ref_eval": 0,
             "ref_flag": 0,
+            "ref_rejected": False,
         }
         log.info("Flux %s : catégorie=%s, référence=%s", key, category,
                  "oui" if _state[key]["ref"] else "non")
     return _state[key]
 
 
-def evaluate(device_id: str, sensor: str):
-    key = f"{device_id}__{sensor}".replace("/", "_")
+def _key(device_id: str, sensor: str) -> str:
+    return f"{device_id}__{sensor}".replace("/", "_")
+
+
+def _evaluate(device_id: str, sensor: str, ts: str):
+    key = _key(device_id, sensor)
     current = feat.extract_features(device_id, sensor)
     if not current:
         return  # fenêtre pas encore pleine pour ce flux
@@ -86,15 +93,19 @@ def evaluate(device_id: str, sensor: str):
         if (st["ref_eval"] == REF_CHECK_WINDOWS
                 and st["ref_flag"] / st["ref_eval"] > REF_MAX_FLAG_RATE):
             st["ref"] = None
+            st["ref_rejected"] = True
             notice = (f"Référence « {st['category']} » inadaptée à {device_id}/{sensor} : "
                       "apprentissage depuis zéro")
-            insert_alert(device_id=device_id, message=notice, severity="low")
+            insert_alert(device_id=device_id, message=notice, severity="low", ts=ts, sensor=sensor,
+                         source="garde de compatibilité", kind="notice")
             log.warning(notice)
     if anomalous:
         message = (f"Comportement inhabituel détecté sur {device_id}/{sensor} "
                    f"({source}, score {result['score']:.3f})")
-        insert_alert(device_id=device_id, message=message, severity="high")
-        log.warning(message)
+        info = insert_alert(device_id=device_id, message=message, severity="high", ts=ts, sensor=sensor,
+                            source=source, score=result["score"], kind="anomaly")
+        # Une seule ligne de journal par épisode : les alertes suivantes de la grappe sont consignées en base.
+        (log.warning if info["new_episode"] else log.debug)(message)
         return  # fenêtre anormale : exclue de l'apprentissage
 
     if st["seen"] % STRIDE:
@@ -112,3 +123,32 @@ def evaluate(device_id: str, sensor: str):
         model.train_baseline(key, list(st["history"]))
         st["since_fit"] = 0
         log.info("Modèle local de %s ré-entraîné sur %d échantillons", key, n)
+
+
+def _publish_state(device_id: str, sensor: str):
+    """Écrit l'état du flux en base pour que l'API (autre processus) puisse l'afficher."""
+    key = _key(device_id, sensor)
+    st = _state.get(key)
+    if st is None:  # fenêtre de 20 messages pas encore pleine
+        category = categorize(sensor)
+        has_ref = reference.load_reference(category) is not None
+        upsert_stream(device_id, sensor, category=category, regime="démarrage",
+                      ref_status="disponible" if has_ref else "aucune", local_samples=0)
+        return
+    if model.has_baseline(key):
+        regime = "local"
+    elif st["ref"]:
+        regime = "référence"
+    else:
+        regime = "apprentissage"
+    ref_status = "rejetée" if st["ref_rejected"] else ("active" if st["ref"] else "aucune")
+    upsert_stream(device_id, sensor, category=st["category"], regime=regime, ref_status=ref_status,
+                  local_samples=len(st["history"]))
+
+
+def evaluate(device_id: str, sensor: str, ts: str | None = None):
+    """Évalue le flux (device_id, sensor) après réception d'un message.
+    `ts` : horodatage du message (sert à regrouper les alertes en épisodes)."""
+    ts = ts or datetime.now(timezone.utc).isoformat()
+    _evaluate(device_id, sensor, ts)
+    _publish_state(device_id, sensor)

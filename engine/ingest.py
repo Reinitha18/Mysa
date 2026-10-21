@@ -17,7 +17,8 @@ import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
 from engine import analyzer
-from engine.storage import init_db, insert_telemetry
+from engine.storage import init_db, insert_telemetry, touch_stream
+from engine.watchdog import start_watchdog
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -56,6 +57,10 @@ def on_message(client, userdata, msg):
         log.warning("Message non JSON ignoré sur %s", msg.topic)
         return
 
+    if not isinstance(payload, dict):
+        log.warning("Message ignoré sur %s : le JSON n'est pas un objet", msg.topic)
+        return
+
     device_id = payload.get("device_id")
     sensor = payload.get("sensor")
     value = payload.get("value")
@@ -66,10 +71,14 @@ def on_message(client, userdata, msg):
         log.warning("Message incomplet ignoré sur %s : %s", msg.topic, payload)
         return
 
-    insert_telemetry(device_id=device_id, sensor=sensor, value=value, unit=unit, ts=ts)
+    ts = insert_telemetry(device_id=device_id, sensor=sensor, value=value, unit=unit, ts=ts)
     log.info("Télémétrie enregistrée : %s/%s = %s", device_id, sensor, value)
 
-    analyzer.evaluate(device_id, sensor)
+    try:
+        touch_stream(device_id, sensor, ts)
+        analyzer.evaluate(device_id, sensor, ts)
+    except Exception:  # une erreur d'analyse ne doit pas arrêter la réception des messages
+        log.exception("Erreur d'analyse sur %s/%s", device_id, sensor)
 
 
 def build_client() -> mqtt.Client:
@@ -85,6 +94,7 @@ def build_client() -> mqtt.Client:
 
 def main():
     init_db()
+    start_watchdog()
     client = build_client()
     client.connect(MQTT_HOST, MQTT_PORT, keepalive=60)
     client.loop_forever()
