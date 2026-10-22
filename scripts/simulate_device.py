@@ -12,13 +12,21 @@ Usage : python scripts/simulate_device.py
 """
 
 import json
+import os
 import random
 import time
 
 import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
 
-HOST = "127.0.0.1"
-PORT = 1883
+load_dotenv()  # lit .env : mêmes réglages que le moteur (MQTT_HOST, MQTT_PORT, ...)
+
+HOST = os.getenv("MQTT_HOST", "127.0.0.1")
+PORT = int(os.getenv("MQTT_PORT", "18830"))
+USE_TLS = os.getenv("MQTT_USE_TLS", "false").lower() == "true"
+CA_CERT = os.getenv("MQTT_CA_CERT") or None
+USER = os.getenv("MQTT_USER")
+PASSWORD = os.getenv("MQTT_PASSWORD")
 DEVICE_ID = "esp32-sec-01"
 TOPIC = f"home/{DEVICE_ID}/pir"
 N_NORMAL = 150
@@ -32,7 +40,16 @@ def publish(client, value):
 
 def main():
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    client.connect(HOST, PORT)
+    if USER:
+        client.username_pw_set(USER, PASSWORD)
+    if USE_TLS:
+        client.tls_set(ca_certs=CA_CERT)
+    print(f"Connexion au broker {HOST}:{PORT} (TLS : {'oui' if USE_TLS else 'non'})")
+    try:
+        client.connect(HOST, PORT)
+    except OSError as err:
+        raise SystemExit(f"Connexion impossible à {HOST}:{PORT} ({err}). "
+                         "Vérifie que Mosquitto tourne et que MQTT_HOST / MQTT_PORT sont corrects dans .env.")
 
     print(f"Publication de {N_NORMAL} messages 'normaux' (un toutes les {DELAY_S} s)...")
     print("Regarde le terminal de 'python -m engine.ingest' : il doit afficher")

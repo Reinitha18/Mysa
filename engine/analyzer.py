@@ -45,6 +45,7 @@ REF_CHECK_WINDOWS = 10
 REF_MAX_FLAG_RATE = 0.5
 
 _state: dict[str, dict] = {}
+_published: dict[str, tuple] = {}
 
 
 def _get_state(key: str, sensor: str) -> dict:
@@ -132,8 +133,11 @@ def _publish_state(device_id: str, sensor: str):
     if st is None:  # fenêtre de 20 messages pas encore pleine
         category = categorize(sensor)
         has_ref = reference.load_reference(category) is not None
-        upsert_stream(device_id, sensor, category=category, regime="démarrage",
-                      ref_status="disponible" if has_ref else "aucune", local_samples=0)
+        snapshot = (category, "démarrage", "disponible" if has_ref else "aucune", 0)
+        if _published.get(key) != snapshot:
+            upsert_stream(device_id, sensor, category=category, regime="démarrage",
+                          ref_status=snapshot[2], local_samples=0)
+            _published[key] = snapshot
         return
     if model.has_baseline(key):
         regime = "local"
@@ -142,8 +146,11 @@ def _publish_state(device_id: str, sensor: str):
     else:
         regime = "apprentissage"
     ref_status = "rejetée" if st["ref_rejected"] else ("active" if st["ref"] else "aucune")
-    upsert_stream(device_id, sensor, category=st["category"], regime=regime, ref_status=ref_status,
-                  local_samples=len(st["history"]))
+    snapshot = (st["category"], regime, ref_status, len(st["history"]))
+    if _published.get(key) != snapshot:  # écriture seulement si l'état a changé
+        upsert_stream(device_id, sensor, category=st["category"], regime=regime, ref_status=ref_status,
+                      local_samples=len(st["history"]))
+        _published[key] = snapshot
 
 
 def evaluate(device_id: str, sensor: str, ts: str | None = None):

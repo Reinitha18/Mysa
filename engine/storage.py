@@ -73,8 +73,13 @@ CREATE INDEX IF NOT EXISTS idx_alerts_device ON alerts (device_id, ts);
 
 @contextmanager
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
+    # WAL : le moteur écrit pendant que l'API lit, sans se bloquer. synchronous=NORMAL évite
+    # une synchronisation disque à chaque écriture (coûteuse sous Windows) ; en cas de coupure
+    # brutale, seules les toutes dernières mesures peuvent être perdues, jamais la base.
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     try:
         yield conn
         conn.commit()
@@ -121,6 +126,17 @@ EPISODE_GAP_S = 60.0
 
 def _parse(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def record_message(device_id: str, sensor: str, value, unit, ts: str | None = None) -> str:
+    """Enregistre un message ET met à jour le registre du flux dans une seule transaction
+    (une seule écriture disque par message). Retourne l'horodatage retenu."""
+    ts = ts or datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute("INSERT INTO telemetry (device_id, sensor, value, unit, ts) VALUES (?, ?, ?, ?, ?)",
+                     (device_id, sensor, value, unit, ts))
+        _touch_stream(conn, device_id, sensor, ts)
+    return ts
 
 
 def insert_alert(device_id: str, message: str, severity: str = "medium", ts: str | None = None,
@@ -217,22 +233,26 @@ def list_episodes(limit: int = 100, device_id: str | None = None) -> list[dict]:
 EMA_ALPHA = 0.2
 
 
+def _touch_stream(conn, device_id: str, sensor: str, ts: str):
+    row = conn.execute("SELECT last_ts, ema_interval FROM streams WHERE device_id = ? AND sensor = ?",
+                       (device_id, sensor)).fetchone()
+    if row is None:
+        conn.execute("INSERT INTO streams (device_id, sensor, last_ts, message_count) VALUES (?, ?, ?, 1)",
+                     (device_id, sensor, ts))
+        return
+    ema = row["ema_interval"]
+    if row["last_ts"]:
+        gap = max((_parse(ts) - _parse(row["last_ts"])).total_seconds(), 0.0)
+        ema = gap if ema is None else (1 - EMA_ALPHA) * ema + EMA_ALPHA * gap
+    conn.execute("UPDATE streams SET last_ts = ?, ema_interval = ?, message_count = message_count + 1, "
+                 "silent = 0 WHERE device_id = ? AND sensor = ?", (ts, ema, device_id, sensor))
+
+
 def touch_stream(device_id: str, sensor: str, ts: str):
-    """À appeler à chaque message : met à jour le dernier message vu, le rythme habituel
-    (moyenne mobile des intervalles) et lève l'état « silencieux »."""
+    """Met à jour le dernier message vu, le rythme habituel (moyenne mobile des intervalles)
+    et lève l'état « silencieux »."""
     with get_connection() as conn:
-        row = conn.execute("SELECT last_ts, ema_interval, message_count FROM streams "
-                           "WHERE device_id = ? AND sensor = ?", (device_id, sensor)).fetchone()
-        if row is None:
-            conn.execute("INSERT INTO streams (device_id, sensor, last_ts, message_count) VALUES (?, ?, ?, 1)",
-                         (device_id, sensor, ts))
-            return
-        ema = row["ema_interval"]
-        if row["last_ts"]:
-            gap = max((_parse(ts) - _parse(row["last_ts"])).total_seconds(), 0.0)
-            ema = gap if ema is None else (1 - EMA_ALPHA) * ema + EMA_ALPHA * gap
-        conn.execute("UPDATE streams SET last_ts = ?, ema_interval = ?, message_count = message_count + 1, "
-                     "silent = 0 WHERE device_id = ? AND sensor = ?", (ts, ema, device_id, sensor))
+        _touch_stream(conn, device_id, sensor, ts)
 
 
 def upsert_stream(device_id: str, sensor: str, **fields):

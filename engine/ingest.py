@@ -17,7 +17,9 @@ import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
 from engine import analyzer
-from engine.storage import init_db, insert_telemetry, touch_stream
+from datetime import datetime, timezone
+
+from engine.storage import init_db, record_message
 from engine.watchdog import start_watchdog
 
 load_dotenv()
@@ -45,6 +47,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 
 
 def on_message(client, userdata, msg):
+    received_at = datetime.now(timezone.utc).isoformat()  # horodatage dès la réception du message
     # Les commandes (home/<device>/cmd/<actionneur>) ne sont pas de la
     # télémétrie entrante : on les ignore ici, elles sont publiées par
     # l'API, pas consommées par le moteur.
@@ -71,11 +74,10 @@ def on_message(client, userdata, msg):
         log.warning("Message incomplet ignoré sur %s : %s", msg.topic, payload)
         return
 
-    ts = insert_telemetry(device_id=device_id, sensor=sensor, value=value, unit=unit, ts=ts)
+    ts = record_message(device_id, sensor, value, unit, ts or received_at)
     log.info("Télémétrie enregistrée : %s/%s = %s", device_id, sensor, value)
 
     try:
-        touch_stream(device_id, sensor, ts)
         analyzer.evaluate(device_id, sensor, ts)
     except Exception:  # une erreur d'analyse ne doit pas arrêter la réception des messages
         log.exception("Erreur d'analyse sur %s/%s", device_id, sensor)

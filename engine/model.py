@@ -47,12 +47,24 @@ def train_baseline(key: str, feature_history: list[dict]) -> bool:
     return True
 
 
+_cache: dict[str, tuple[float, object]] = {}
+
+
+def _load(path: str):
+    """Charge un modèle en mémoire et ne le relit que si le fichier a changé."""
+    mtime = os.path.getmtime(path)
+    cached = _cache.get(path)
+    if cached is None or cached[0] != mtime:
+        _cache[path] = (mtime, joblib.load(path))
+    return _cache[path][1]
+
+
 def score(key: str, features: dict) -> dict | None:
     """Évalue un vecteur par rapport au modèle local (None si pas de modèle)."""
     path = _model_path(key)
     if not os.path.exists(path):
         return None
-    model = joblib.load(path)
+    model = _load(path)
     X = _to_frame([features])
     return {
         "is_anomaly": bool(model.predict(X)[0] == -1),
