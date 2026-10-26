@@ -78,7 +78,7 @@ def on_message(client, userdata, msg):
     log.info("Télémétrie enregistrée : %s/%s = %s", device_id, sensor, value)
 
     try:
-        analyzer.evaluate(device_id, sensor, ts)
+        analyzer.evaluate(device_id, sensor, ts, unit)
     except Exception:  # une erreur d'analyse ne doit pas arrêter la réception des messages
         log.exception("Erreur d'analyse sur %s/%s", device_id, sensor)
 

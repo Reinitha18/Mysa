@@ -43,7 +43,7 @@ L'API est alors disponible sur http://127.0.0.1:8000 (documentation interactive 
 
 ## Tester la boucle complète (baseline + détection)
 
-Avec Mosquitto local lancé et `python -m engine.ingest` dans un terminal,
+Avec Mosquitto local (mosquitto -c mosquitto-local.conf -v) lancé et `python -m engine.ingest` dans un terminal,
 lance dans un autre terminal :
 ```
 python scripts/simulate_device.py

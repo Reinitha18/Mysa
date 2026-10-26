@@ -25,6 +25,8 @@ def load_reference(category: str | None) -> dict | None:
     """Charge le modèle de référence d'une catégorie (None si absent)."""
     if not category:
         return None
+    if os.getenv("MYSA_DISABLE_REFERENCE") == "1":
+        return None  # configuration « apprentissage depuis zéro » (essai comparatif de démarrage à froid)
     if category not in _cache:
         path = reference_path(category)
         _cache[category] = joblib.load(path) if os.path.exists(path) else None

@@ -12,7 +12,8 @@ Orchestration de la détection comportementale, par flux capteur
      local est ré-entraîné sur les N_LOCAL_MAX derniers (fenêtre glissante).
 
 Garde de compatibilité : si la référence classe en anomalie plus de
-REF_MAX_FLAG_RATE des REF_CHECK_WINDOWS premières fenêtres, elle est jugée
+REF_MAX_FLAG_RATE des REF_CHECK_WINDOWS premières fenêtres, OU des REF_ROLLING_WINDOWS
+dernières fenêtres (contrôle durable), elle est jugée
 inadaptée à ce flux (décalage entre le dataset public et l'appareil réel,
 ou attaque dès le démarrage — indiscernables sans étiquette). Elle est alors
 abandonnée, un avis est enregistré, et le flux apprend depuis zéro.
@@ -38,17 +39,18 @@ from engine.storage import insert_alert, upsert_stream
 log = logging.getLogger("mysa.analyzer")
 
 STRIDE = 5          # un échantillon d'apprentissage tous les STRIDE messages
-N_LOCAL_MIN = model.MIN_TRAIN_SAMPLES
+N_LOCAL_MIN = model.MIN_TRAIN_SAMPLES  # 40 échantillons, soit 215 messages au minimum
 N_LOCAL_MAX = 200
 REFIT_EVERY = 20
 REF_CHECK_WINDOWS = 10
 REF_MAX_FLAG_RATE = 0.5
+REF_ROLLING_WINDOWS = 100  # contrôle durable : la référence peut se dégrader après un bon début
 
 _state: dict[str, dict] = {}
 _published: dict[str, tuple] = {}
 
 
-def _get_state(key: str, sensor: str) -> dict:
+def _get_state(key: str, sensor: str, unit: str | None = None) -> dict:
     if key not in _state:
         category = categorize(sensor)
         _state[key] = {
@@ -60,6 +62,8 @@ def _get_state(key: str, sensor: str) -> dict:
             "ref_eval": 0,
             "ref_flag": 0,
             "ref_rejected": False,
+            "ref_recent": deque(maxlen=REF_ROLLING_WINDOWS),
+            "binary": unit == "bool",
         }
         log.info("Flux %s : catégorie=%s, référence=%s", key, category,
                  "oui" if _state[key]["ref"] else "non")
@@ -70,18 +74,19 @@ def _key(device_id: str, sensor: str) -> str:
     return f"{device_id}__{sensor}".replace("/", "_")
 
 
-def _evaluate(device_id: str, sensor: str, ts: str):
+def _evaluate(device_id: str, sensor: str, ts: str, unit: str | None = None):
     key = _key(device_id, sensor)
     current = feat.extract_features(device_id, sensor)
     if not current:
         return  # fenêtre pas encore pleine pour ce flux
 
-    st = _get_state(key, sensor)
+    st = _get_state(key, sensor, unit)
     st["seen"] += 1
 
     result, source = None, None
     if model.has_baseline(key):
-        result, source = model.score(key, current), "modèle local"
+        result = model.score(key, current)
+        source = "modèle local"
     elif st["ref"]:
         result = reference.score_reference(st["ref"], current)
         source = f"référence « {st['category']} »"
@@ -91,8 +96,12 @@ def _evaluate(device_id: str, sensor: str, ts: str):
     if source and source.startswith("référence"):
         st["ref_eval"] += 1
         st["ref_flag"] += int(anomalous)
-        if (st["ref_eval"] == REF_CHECK_WINDOWS
-                and st["ref_flag"] / st["ref_eval"] > REF_MAX_FLAG_RATE):
+        st["ref_recent"].append(int(anomalous))
+        quick = (st["ref_eval"] == REF_CHECK_WINDOWS
+                 and st["ref_flag"] / st["ref_eval"] > REF_MAX_FLAG_RATE)
+        sustained = (len(st["ref_recent"]) == REF_ROLLING_WINDOWS
+                     and sum(st["ref_recent"]) / REF_ROLLING_WINDOWS > REF_MAX_FLAG_RATE)
+        if quick or sustained:
             st["ref"] = None
             st["ref_rejected"] = True
             notice = (f"Référence « {st['category']} » inadaptée à {device_id}/{sensor} : "
@@ -100,11 +109,14 @@ def _evaluate(device_id: str, sensor: str, ts: str):
             insert_alert(device_id=device_id, message=notice, severity="low", ts=ts, sensor=sensor,
                          source="garde de compatibilité", kind="notice")
             log.warning(notice)
+
     if anomalous:
+        detail = f", {result['reason']}" if result.get("reason") else ""
         message = (f"Comportement inhabituel détecté sur {device_id}/{sensor} "
-                   f"({source}, score {result['score']:.3f})")
+                   f"({source}{detail}, score {result['score']:.3f})")
+        label = f"{source} ({result['reason']})" if result.get("reason") else source
         info = insert_alert(device_id=device_id, message=message, severity="high", ts=ts, sensor=sensor,
-                            source=source, score=result["score"], kind="anomaly")
+                            source=label, score=result["score"], kind="anomaly")
         # Une seule ligne de journal par épisode : les alertes suivantes de la grappe sont consignées en base.
         (log.warning if info["new_episode"] else log.debug)(message)
         return  # fenêtre anormale : exclue de l'apprentissage
@@ -117,11 +129,11 @@ def _evaluate(device_id: str, sensor: str, ts: str):
 
     if not model.has_baseline(key):
         log.info("Baseline %s : %d/%d échantillons", key, n, N_LOCAL_MIN)
-        if n >= N_LOCAL_MIN and model.train_baseline(key, list(st["history"])):
+        if n >= N_LOCAL_MIN and model.train_baseline(key, list(st["history"]), st["binary"]):
             st["since_fit"] = 0
             log.info("Modèle local entraîné pour %s — il remplace la référence", key)
     elif st["since_fit"] >= REFIT_EVERY:
-        model.train_baseline(key, list(st["history"]))
+        model.train_baseline(key, list(st["history"]), st["binary"])
         st["since_fit"] = 0
         log.info("Modèle local de %s ré-entraîné sur %d échantillons", key, n)
 
@@ -153,9 +165,9 @@ def _publish_state(device_id: str, sensor: str):
         _published[key] = snapshot
 
 
-def evaluate(device_id: str, sensor: str, ts: str | None = None):
+def evaluate(device_id: str, sensor: str, ts: str | None = None, unit: str | None = None):
     """Évalue le flux (device_id, sensor) après réception d'un message.
     `ts` : horodatage du message (sert à regrouper les alertes en épisodes)."""
     ts = ts or datetime.now(timezone.utc).isoformat()
-    _evaluate(device_id, sensor, ts)
+    _evaluate(device_id, sensor, ts, unit)
     _publish_state(device_id, sensor)

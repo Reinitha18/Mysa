@@ -22,14 +22,14 @@ from dotenv import load_dotenv
 load_dotenv()  # lit .env : mêmes réglages que le moteur (MQTT_HOST, MQTT_PORT, ...)
 
 HOST = os.getenv("MQTT_HOST", "127.0.0.1")
-PORT = int(os.getenv("MQTT_PORT", "18830"))
+PORT = int(os.getenv("MQTT_PORT", "1883"))
 USE_TLS = os.getenv("MQTT_USE_TLS", "false").lower() == "true"
 CA_CERT = os.getenv("MQTT_CA_CERT") or None
 USER = os.getenv("MQTT_USER")
 PASSWORD = os.getenv("MQTT_PASSWORD")
 DEVICE_ID = "esp32-sec-01"
 TOPIC = f"home/{DEVICE_ID}/pir"
-N_NORMAL = 150
+N_NORMAL = 300
 DELAY_S = 0.2
 
 
@@ -54,10 +54,14 @@ def main():
     print(f"Publication de {N_NORMAL} messages 'normaux' (un toutes les {DELAY_S} s)...")
     print("Regarde le terminal de 'python -m engine.ingest' : il doit afficher")
     print("la progression de la baseline (x/20 échantillons) ; sans modèle de référence,")
-    print("il faut une fenêtre de 20 messages puis ~100 messages pour 20 échantillons.")
+    print("il faut une fenêtre de 20 messages puis ~200 messages pour 40 échantillons.")
+    t_start = time.perf_counter()
     for _ in range(N_NORMAL):
         publish(client, random.choice([0, 1]))
         time.sleep(DELAY_S)
+    elapsed = time.perf_counter() - t_start
+    print(f"Côté simulateur : {N_NORMAL} messages en {elapsed:.1f} s, soit un message toutes les "
+          f"{elapsed / N_NORMAL:.3f} s en réalité (visé : {DELAY_S} s).")
 
     print("\nPublication d'un message 'anormal' (valeur hors norme pour un PIR)...")
     publish(client, 999)
