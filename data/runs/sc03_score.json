@@ -1,0 +1,17 @@
+{
+  "scenario": "sc03",
+  "seed": 1,
+  "evenements": [
+    {
+      "flux": "virt-climate-01/temperature",
+      "type": "drift",
+      "t": 800,
+      "detectee": false,
+      "delai_s": null,
+      "source": null,
+      "alertes": 0
+    }
+  ],
+  "fausses_alertes": 487,
+  "episodes_faux": 36
+}

@@ -1,0 +1,17 @@
+{
+  "scenario": "sc05",
+  "seed": 1,
+  "evenements": [
+    {
+      "flux": "virt-hall-01/pir",
+      "type": "silence",
+      "t": 60,
+      "detectee": true,
+      "delai_s": 0.5,
+      "source": "modèle local (forêt)",
+      "alertes": 146
+    }
+  ],
+  "fausses_alertes": 792,
+  "episodes_faux": 330
+}

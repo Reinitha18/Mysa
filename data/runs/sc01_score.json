@@ -1,0 +1,26 @@
+{
+  "scenario": "sc01",
+  "seed": 1,
+  "evenements": [
+    {
+      "flux": "virt-hall-01/pir",
+      "type": "spike",
+      "t": 800,
+      "detectee": true,
+      "delai_s": 1.7,
+      "source": "modèle local (enveloppe)",
+      "alertes": 20
+    },
+    {
+      "flux": "virt-climate-01/temperature",
+      "type": "spike",
+      "t": 820,
+      "detectee": true,
+      "delai_s": 2.8,
+      "source": "modèle local (enveloppe)",
+      "alertes": 20
+    }
+  ],
+  "fausses_alertes": 168,
+  "episodes_faux": 24
+}

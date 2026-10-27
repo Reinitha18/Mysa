@@ -1,8 +1,18 @@
 {
-  "preset": "sc00",
+  "preset": "sc05",
   "seed": 1,
-  "duration": 1100,
-  "speed": 5,
-  "start_wall": "2026-10-26T08:15:47.686773+00:00",
-  "events": []
+  "duration": 200,
+  "speed": 1,
+  "start_wall": "2026-10-27T14:19:04.126515+00:00",
+  "events": [
+    {
+      "t": 60,
+      "device": "virt-hall-01",
+      "sensor": "pir",
+      "type": "silence",
+      "duration": 90,
+      "start_ts": "2026-10-27T14:20:04.126515+00:00",
+      "end_ts": "2026-10-27T14:21:34.126515+00:00"
+    }
+  ]
 }
