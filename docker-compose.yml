@@ -1,0 +1,83 @@
+# Hub Mysa complet, en trois services. Une seule commande pour tout démarrer, identique sur
+# n'importe quel poste : voir deploy/mysa-start.ps1 (Windows) et docs/deploiement_windows.md.
+#
+#   broker : Mosquitto en TLS (8883), authentification + ACL (broker/acl.conf).
+#   engine : moteur d'ingestion MQTT -> base locale (python -m engine.ingest).
+#   api    : API + dashboard + pont caméra, en HTTPS (8000).
+#
+# engine et api partagent la base et les modèles via des volumes nommés (mysa-data, mysa-models).
+# Les certificats (broker/certs) et le fichier de mots de passe (broker/passwd) sont générés avant
+# le premier démarrage par le script de démarrage.
+
+services:
+  broker:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "8883:8883"              # accessible aux ESP32 et au téléphone sur le réseau
+    volumes:
+      - ./broker/mosquitto.docker.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./broker/acl.conf:/mosquitto/config/acl.conf:ro
+      - ./broker/passwd:/mosquitto/config/passwd:ro
+      - ./broker/certs:/mosquitto/certs:ro
+
+  engine:
+    build: .
+    # Un nom d'image différent par service : avec le même nom, les deux constructions parallèles
+    # se disputent l'étiquette (« image ... already exists »). Le cache rend la 2e quasi gratuite.
+    image: mysa-hub-engine
+    restart: unless-stopped
+    command: ["python", "-m", "engine.ingest"]
+    env_file: .env
+    environment:
+      MQTT_HOST: broker
+      MQTT_PORT: "8883"
+      MQTT_USE_TLS: "true"
+      MQTT_CA_CERT: /app/broker/certs/ca.crt
+      DB_PATH: /app/data/mysa.db
+      MYSA_MODELS_DIR: /app/engine/models
+    volumes:
+      - mysa-data:/app/data
+      - mysa-models:/app/engine/models
+      - ./broker/certs:/app/broker/certs:ro
+    depends_on:
+      broker:
+        condition: service_started
+
+  api:
+    build: .
+    image: mysa-hub-api
+    restart: unless-stopped
+    # HTTPS obligatoire pour la caméra (voir docs/https.md).
+    command:
+      - uvicorn
+      - api.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --ssl-keyfile
+      - /app/broker/certs/server.key
+      - --ssl-certfile
+      - /app/broker/certs/server.crt
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      MQTT_HOST: broker
+      MQTT_PORT: "8883"
+      MQTT_USE_TLS: "true"
+      MQTT_CA_CERT: /app/broker/certs/ca.crt
+      DB_PATH: /app/data/mysa.db
+      MYSA_MODELS_DIR: /app/engine/models
+    volumes:
+      - mysa-data:/app/data
+      - mysa-models:/app/engine/models
+      - ./broker/certs:/app/broker/certs:ro
+    depends_on:
+      broker:
+        condition: service_started
+
+volumes:
+  mysa-data:
+  mysa-models:

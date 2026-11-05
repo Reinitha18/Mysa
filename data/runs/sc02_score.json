@@ -1,0 +1,17 @@
+{
+  "scenario": "sc02",
+  "seed": 1,
+  "evenements": [
+    {
+      "flux": "virt-hall-01/pir",
+      "type": "flood",
+      "t": 800,
+      "detectee": true,
+      "delai_s": 62.1,
+      "source": "modèle local (forêt)",
+      "alertes": 8
+    }
+  ],
+  "fausses_alertes": 249,
+  "episodes_faux": 29
+}

@@ -1,0 +1,5 @@
+Start QEMU with "C:\Program Files\GNS3\qemu-3.1.0\qemu-system-x86_64w.exe" -name OpemWrt-1 -m 256M -smp "cpus=1,sockets=1" -enable-hax -boot "order=c" -drive "file=E:\Mysa\Project\Mysa\gns3\project-files\qemu\58ca8782-e7e0-473b-ba03-32bdf379f86d\hda_disk.qcow2,if=ide,index=0,media=disk,id=drive0" -uuid 58ca8782-e7e0-473b-ba03-32bdf379f86d -serial "telnet:127.0.0.1:5004,server,nowait" -monitor "tcp:127.0.0.1:64703,server,nowait" -net none -device "e1000,mac=0c:ca:87:82:00:00,netdev=gns3-0" -netdev "socket,id=gns3-0,udp=127.0.0.1:10009,localaddr=127.0.0.1:10008" -device "e1000,mac=0c:ca:87:82:00:01,netdev=gns3-1" -netdev "socket,id=gns3-1,udp=127.0.0.1:10011,localaddr=127.0.0.1:10010" -nographic
+
+Execution log:
+C:\Program Files\GNS3\qemu-3.1.0\qemu-system-x86_64w.exe: -enable-hax: warning: Option is deprecated, use '-accel hax' instead
+HAX is working and emulator runs in fast virt mode.

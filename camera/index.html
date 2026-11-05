@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Caméra Mysa</title>
+  <style>
+    :root { --bg: #0c1f5b; --card: #12296e; --ink: #f4f7ff; --muted: #a9b6e0; --ok: #38c172;
+            --off: #f38a80; --accent: #00baed; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .wrap { min-height: 100%; display: flex; flex-direction: column; gap: 14px; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+    header { display: flex; align-items: center; gap: 10px; }
+    header h1 { font-size: 1.1rem; margin: 0; letter-spacing: 0.02em; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+    .dot.on { background: var(--ok); } .dot.off { background: var(--off); }
+    .preview { position: relative; background: #000; border-radius: 16px; overflow: hidden; aspect-ratio: 4 / 3; display: grid; place-items: center; }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    .preview .hint { position: absolute; color: var(--muted); font-size: 0.9rem; padding: 0 24px; text-align: center; }
+    .status { background: var(--card); border-radius: 12px; padding: 12px 14px; font-size: 0.9rem; color: var(--muted); line-height: 1.5; }
+    .status b { color: var(--ink); }
+    button { appearance: none; border: 0; border-radius: 12px; padding: 16px; font-size: 1.05rem; font-weight: 700;
+      background: var(--accent); color: #042; cursor: pointer; }
+    button.stop { background: var(--off); color: #3a0d09; }
+    button:disabled { opacity: 0.5; }
+    .err { background: #3a1412; color: #ffd9d4; border-radius: 12px; padding: 12px 14px; font-size: 0.9rem; }
+    .spacer { flex: 1; }
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="dot" id="link"></span>
+      <h1>Caméra Mysa</h1>
+    </header>
+
+    <div class="preview">
+      <video id="video" playsinline muted autoplay></video>
+      <p class="hint" id="hint">Appuyez sur « Démarrer » pour partager la caméra arrière avec le hub.</p>
+    </div>
+
+    <div class="status" id="status">
+      Hub : <b id="hubState">non connecté</b> · Images envoyées : <b id="count">0</b>
+    </div>
+    <div class="err" id="err" hidden></div>
+
+    <div class="spacer"></div>
+    <button id="toggle">Démarrer</button>
+  </div>
+
+  <canvas id="jpegCanvas" width="320" height="240"></canvas>
+  <canvas id="grayCanvas" width="32" height="24"></canvas>
+
+  <script>
+    // Page caméra : capture la caméra arrière, envoie au hub (WebSocket) un JPEG pour l'affichage et
+    // une vignette en niveaux de gris pour la détection de mouvement côté hub. Aucune image n'est
+    // stockée sur le téléphone. HTTPS obligatoire (getUserMedia) — voir docs/https.md.
+    const FPS = 3, JPEG_QUALITY = 0.5;
+    const GW = 32, GH = 24;
+    const els = {
+      video: document.getElementById("video"), hint: document.getElementById("hint"),
+      toggle: document.getElementById("toggle"), link: document.getElementById("link"),
+      hubState: document.getElementById("hubState"), count: document.getElementById("count"),
+      err: document.getElementById("err"),
+    };
+    const jpegCtx = document.getElementById("jpegCanvas").getContext("2d");
+    const grayCtx = document.getElementById("grayCanvas").getContext("2d", { willReadFrequently: true });
+
+    let stream = null, ws = null, timer = null, running = false, sent = 0;
+
+    function showError(msg) { els.err.hidden = false; els.err.textContent = msg; }
+    function wsUrl() {
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      return `${proto}://${location.host}/ws/camera/publish`;
+    }
+
+    // Hub protégé par mot de passe (MYSA_DASHBOARD_PASSWORD) : la session s'ouvre sur le dashboard,
+    // dont le cookie vaut aussi pour cette page (même hub, même origine).
+    async function connect() {
+      try {
+        const auth = await (await fetch("/api/auth/status")).json();
+        if (auth.required && !auth.authenticated) {
+          stop();
+          els.hubState.textContent = "connexion requise";
+          els.err.hidden = false;
+          els.err.innerHTML = 'Connectez-vous d\'abord sur le <a href="/dashboard/">tableau de bord</a> ' +
+                              "depuis ce téléphone, puis revenez sur cette page.";
+          return;
+        }
+      } catch { /* hub injoignable : la reconnexion ci-dessous réessaiera */ }
+      ws = new WebSocket(wsUrl());
+      ws.onopen = () => { els.link.className = "dot on"; els.hubState.textContent = "connecté"; };
+      ws.onclose = () => {
+        els.link.className = "dot off"; els.hubState.textContent = "reconnexion…";
+        if (running) setTimeout(connect, 2000);
+      };
+      ws.onerror = () => ws.close();
+    }
+
+    function grabFrame() {
+      if (!ws || ws.readyState !== WebSocket.OPEN || els.video.readyState < 2) return;
+      jpegCtx.drawImage(els.video, 0, 0, 320, 240);
+      const jpeg = document.getElementById("jpegCanvas").toDataURL("image/jpeg", JPEG_QUALITY);
+      grayCtx.drawImage(els.video, 0, 0, GW, GH);
+      const px = grayCtx.getImageData(0, 0, GW, GH).data;
+      const gray = new Array(GW * GH);
+      for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+        gray[j] = (px[i] * 299 + px[i + 1] * 587 + px[i + 2] * 114) / 1000 | 0;
+      }
+      ws.send(JSON.stringify({ ts: new Date().toISOString(), jpeg, gray, gw: GW, gh: GH }));
+      els.count.textContent = ++sent;
+    }
+
+    async function start() {
+      els.err.hidden = true;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        showError("La caméra est inaccessible. Ouvrez cette page en HTTPS (https://…), pas en HTTP.");
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+      } catch (e) {
+        showError("Accès caméra refusé ou indisponible : " + e.message);
+        return;
+      }
+      els.video.srcObject = stream;
+      els.hint.hidden = true;
+      running = true;
+      els.toggle.textContent = "Arrêter";
+      els.toggle.className = "stop";
+      connect();
+      timer = setInterval(grabFrame, Math.round(1000 / FPS));
+    }
+
+    function stop() {
+      running = false;
+      clearInterval(timer); timer = null;
+      if (ws) { ws.close(); ws = null; }
+      if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+      els.video.srcObject = null;
+      els.hint.hidden = false;
+      els.link.className = "dot"; els.hubState.textContent = "non connecté";
+      els.toggle.textContent = "Démarrer"; els.toggle.className = "";
+    }
+
+    els.toggle.onclick = () => (running ? stop() : start());
+    window.addEventListener("pagehide", stop);
+  </script>
+</body>
+</html>

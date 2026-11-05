@@ -1,0 +1,125 @@
+# /etc/config/firewall — routeur pare-feu Mysa (OpenWrt).
+#
+# Politique : tout ce qui n'est pas explicitement autorisé est bloqué (forward DROP par défaut).
+# Objectif de segmentation (mémoire, chapitre 8 ; justification : gns3/flux_matrix.md) :
+#   - les OBJETS (VLAN 20) ne joignent le HUB (VLAN 30) que sur le broker MQTT (8883).
+#     Le téléphone-caméra, lui aussi dans les objets, a besoin en plus du HTTPS du hub (8000).
+#   - le HUB sort vers Internet (WAN) pour les notifications (e-mail / WhatsApp).
+#   - l'ATTAQUANT (VLAN 40) est ISOLÉ : aucun flux autorisé par défaut. Les règles d'attaque
+#     se décommentent scénario par scénario (voir la fin du fichier).
+
+config defaults
+	option input 'DROP'
+	option output 'ACCEPT'
+	option forward 'DROP'
+	option syn_flood '1'
+
+# --- Zones ---
+config zone
+	option name 'wan'
+	list network 'wan'
+	option input 'DROP'
+	option output 'ACCEPT'
+	option forward 'DROP'
+	option masq '1'
+	option mtu_fix '1'
+
+config zone
+	option name 'objets'
+	list network 'objets'
+	option input 'DROP'
+	option output 'ACCEPT'
+	option forward 'DROP'
+
+config zone
+	option name 'hub'
+	list network 'hub'
+	option input 'DROP'
+	option output 'ACCEPT'
+	option forward 'DROP'
+
+config zone
+	option name 'attaquant'
+	list network 'attaquant'
+	option input 'DROP'
+	option output 'ACCEPT'
+	option forward 'DROP'
+
+# --- Services du routeur (DHCP + DNS) pour chaque segment ---
+config rule
+	option name 'DHCP-DNS-objets'
+	option src 'objets'
+	option proto 'tcp udp'
+	option dest_port '53 67 68'
+	option target 'ACCEPT'
+
+config rule
+	option name 'DHCP-DNS-hub'
+	option src 'hub'
+	option proto 'tcp udp'
+	option dest_port '53 67 68'
+	option target 'ACCEPT'
+
+config rule
+	option name 'DHCP-DNS-attaquant'
+	option src 'attaquant'
+	option proto 'tcp udp'
+	option dest_port '53 67 68'
+	option target 'ACCEPT'
+
+# Administration du routeur (SSH / LuCI) depuis le hub uniquement.
+config rule
+	option name 'Admin-depuis-hub'
+	option src 'hub'
+	option proto 'tcp'
+	option dest_port '22 80 443'
+	option target 'ACCEPT'
+
+# --- Flux autorisés entre segments ---
+# Objets -> Hub : broker MQTT (TLS) uniquement.
+config rule
+	option name 'Objets-vers-Hub-MQTT'
+	option src 'objets'
+	option dest 'hub'
+	option proto 'tcp'
+	option dest_ip '192.168.30.20'
+	option dest_port '8883'
+	option target 'ACCEPT'
+
+# Objets -> Hub : HTTPS du hub pour le téléphone-caméra (page caméra + WebSocket).
+config rule
+	option name 'Objets-vers-Hub-HTTPS'
+	option src 'objets'
+	option dest 'hub'
+	option proto 'tcp'
+	option dest_ip '192.168.30.20'
+	option dest_port '8000'
+	option target 'ACCEPT'
+
+# Hub -> Internet : notifications (SMTP, API CallMeBot) et mises à jour.
+config forwarding
+	option src 'hub'
+	option dest 'wan'
+
+# Objets -> Internet : NTP / DNS des ESP32 et du téléphone (désactiver pour un cloisonnement strict).
+config forwarding
+	option src 'objets'
+	option dest 'wan'
+
+# ============================================================================
+# LAB D'ATTAQUE — l'attaquant est isolé par défaut. Décommenter UNE règle à la fois,
+# selon le test d'intrusion joué (TI-01 à TI-05), puis « /etc/init.d/firewall restart ».
+#
+# config rule
+#	option name 'ATTAQUE-vers-Hub'          # TI-02/03/04 : atteindre le broker du hub
+#	option src 'attaquant'
+#	option dest 'hub'
+#	option proto 'tcp'
+#	option dest_ip '192.168.30.20'
+#	option dest_port '8883'
+#	option target 'ACCEPT'
+#
+# config forwarding
+#	option src 'attaquant'                   # TI-05 : attaquant placé dans le VLAN des objets
+#	option dest 'objets'
+# ============================================================================

@@ -1,0 +1,8 @@
+Mise à jour Mysa (lecteur bloqué 5 essais, photos des badges, LED rouge, notifications e-mail/SMS, GNS3)
+
+1. Fermer Mysa (Arreter Mysa.bat).
+2. Extraire ce zip DANS le dossier Mysa-main et accepter de remplacer les fichiers.
+3. Dans son propre .env : supprimer les 2 lignes MYSA_WHATSAPP_PHONE et MYSA_WHATSAPP_APIKEY (facultatif).
+4. Relancer Demarrer Mysa.bat (reconstruit le moteur, l'API et le dashboard).
+5. Retéléverser le nœud : Televerser sec01.bat.
+6. GNS3 : réimporter gns3/mysa.gns3 puis suivre docs/gns3.md section 4.

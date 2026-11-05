@@ -1,0 +1,14 @@
+{
+  "category": "ouverture",
+  "dataset": "IoT_Garage_Door.csv",
+  "n_test_windows": 4616,
+  "windows_already_constant_share": 0.13474870017331023,
+  "reference_false_alarm_rate": 0.036395147313691506,
+  "detection_by_anomaly": {
+    "pic (8 écarts-types)": 1.0,
+    "pic (4 écarts-types)": 0.2123050259965338,
+    "valeur bloquée": 0.0,
+    "oscillation extrême": 1.0,
+    "décalage de niveau (+4 écarts-types)": 0.036395147313691506
+  }
+}

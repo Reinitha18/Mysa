@@ -1,0 +1,42 @@
+"""
+Modèles de référence par catégorie d'appareil (amorçage à froid).
+
+Chaque modèle est un Isolation Forest entraîné par scripts/train_reference.py
+sur le dataset public d'UNE catégorie, uniquement sur les fenêtres de
+télémétrie normale, avec les caractéristiques PORTABLES (engine/features.py).
+Il sert de filet de sécurité tant que le modèle local d'un flux n'est pas
+prêt ; il n'est jamais mélangé avec un autre.
+"""
+
+import os
+
+import joblib
+
+from engine.fastforest import compile_forest, decision
+
+REFERENCE_DIR = os.path.join(os.path.dirname(__file__), "models", "reference")
+_cache: dict[str, dict | None] = {}
+
+
+def reference_path(category: str) -> str:
+    return os.path.join(REFERENCE_DIR, f"{category}.joblib")
+
+
+def load_reference(category: str | None) -> dict | None:
+    """Charge le modèle de référence d'une catégorie (None si absent)."""
+    if not category:
+        return None
+    if os.getenv("MYSA_DISABLE_REFERENCE") == "1":
+        return None  # configuration « apprentissage depuis zéro » (essai comparatif de démarrage à froid)
+    if category not in _cache:
+        path = reference_path(category)
+        bundle = joblib.load(path) if os.path.exists(path) else None
+        if bundle is not None:
+            bundle["compiled"] = compile_forest(bundle["model"])
+        _cache[category] = bundle
+    return _cache[category]
+
+
+def score_reference(bundle: dict, features: dict) -> dict:
+    s = decision(bundle["compiled"], [features[c] for c in bundle["features"]])
+    return {"is_anomaly": s < 0, "score": float(s)}

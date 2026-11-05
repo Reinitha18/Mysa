@@ -1,0 +1,41 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Variables d'environnement et secrets
+.env
+broker/certs/
+broker/passwd
+
+# Base de données locale (générée au runtime)
+*.db
+
+# Modèles entraînés (générés au runtime)
+engine/models/*.joblib
+
+# Node / dashboard
+node_modules/
+dashboard/build/
+dashboard/dist/
+
+# Éditeurs
+.vscode/
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Datasets publics (téléchargés localement, non versionnés)
+data/public/*.csv
+
+# Tests
+.pytest_cache/
+
+# Base de démonstration du dashboard (scripts/demo_seed.py)
+data/demo/
+
+# Firmware (PlatformIO)
+firmware/.pio/
+firmware/include/mysa_config.h

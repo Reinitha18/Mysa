@@ -1,0 +1,46 @@
+# /etc/config/network — routeur pare-feu Mysa (OpenWrt) dans GNS3.
+#
+# Segmentation en trois VLAN 802.1q sur un trunk (eth1) vers le switch managé GNS3 :
+#   VLAN 20  objets connectés (ESP32, téléphone)  192.168.20.0/24
+#   VLAN 30  hub Mysa                               192.168.30.0/24  (hub = .20)
+#   VLAN 40  attaquant (VM Kali)                    192.168.40.0/24
+# eth0 = WAN : vers le nœud Cloud de GNS3 (carte de l'hôte / box) pour l'accès Internet.
+#
+# NB : selon la version d'OpenWrt, la déclaration des VLAN peut se faire via « config device »
+# (bridge-vlan, DSA). La forme eth1.20 ci-dessous reste comprise via le module 8021q du noyau.
+# Voir docs/gns3.md.
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option ula_prefix 'fdae:1:2::/48'
+
+# --- WAN : accès Internet via le nœud Cloud (hôte) ---
+config interface 'wan'
+	option device 'eth0'
+	option proto 'dhcp'
+
+# --- VLAN 20 : objets connectés ---
+config interface 'objets'
+	option device 'eth1.20'
+	option proto 'static'
+	option ipaddr '192.168.20.1'
+	option netmask '255.255.255.0'
+
+# --- VLAN 30 : hub Mysa ---
+config interface 'hub'
+	option device 'eth1.30'
+	option proto 'static'
+	option ipaddr '192.168.30.1'
+	option netmask '255.255.255.0'
+
+# --- VLAN 40 : attaquant (lab) ---
+config interface 'attaquant'
+	option device 'eth1.40'
+	option proto 'static'
+	option ipaddr '192.168.40.1'
+	option netmask '255.255.255.0'

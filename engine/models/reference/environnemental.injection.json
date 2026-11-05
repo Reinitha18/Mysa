@@ -1,0 +1,14 @@
+{
+  "category": "environnemental",
+  "dataset": "IoT_Weather.csv",
+  "n_test_windows": 5562,
+  "windows_already_constant_share": 0.0,
+  "reference_false_alarm_rate": 0.04962243797195254,
+  "detection_by_anomaly": {
+    "pic (8 écarts-types)": 0.3610212153901474,
+    "pic (4 écarts-types)": 0.08270406328658755,
+    "valeur bloquée": 1.0,
+    "oscillation extrême": 1.0,
+    "décalage de niveau (+4 écarts-types)": 0.04962243797195254
+  }
+}

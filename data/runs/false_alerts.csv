@@ -1,0 +1,11 @@
+config,configuration,graine,jours_simules,messages,episodes_faux,alertes_fausses,fausses_alertes_par_jour,par_flux
+avant,références actives (hypothèse H1),1,0.25,55440,1,44,4.0,virt-hall-01/pir=1
+avant,références actives (hypothèse H1),2,0.25,55440,2,71,8.0,virt-door-01/magnet=1;virt-hall-01/pir=1
+avant,références actives (hypothèse H1),3,0.25,55440,2,69,8.0,virt-door-01/magnet=2
+avant,références actives (hypothèse H1),4,0.25,55440,2,53,8.0,virt-cam-01/cam_bitrate=1;virt-door-01/magnet=1
+apres,références en filtre seul (Mysa),1,0.25,55440,0,0,0.0,
+apres,références en filtre seul (Mysa),2,0.25,55440,0,0,0.0,
+apres,références en filtre seul (Mysa),3,0.25,55440,0,0,0.0,
+apres,références en filtre seul (Mysa),4,0.25,55440,1,5,4.0,virt-cam-01/cam_bitrate=1
+avant,références actives (hypothèse H1),TOTAL,1.0,221760,7,237,7.0,
+apres,références en filtre seul (Mysa),TOTAL,1.0,221760,1,5,1.0,

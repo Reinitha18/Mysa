@@ -1,0 +1,16 @@
+{
+  "category": "environnemental",
+  "dataset": "IoT_Weather.csv",
+  "value_col": "temperature",
+  "window": 20,
+  "features": [
+    "mean_abs_delta",
+    "std_value",
+    "unique_ratio"
+  ],
+  "n_windows_train": 22244,
+  "n_windows_test_normal": 5562,
+  "n_windows_test_attack": 4614,
+  "false_positive_rate": 0.04962243797195254,
+  "detection_rate": 0.08365843086259211
+}

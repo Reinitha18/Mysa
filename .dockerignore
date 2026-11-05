@@ -1,0 +1,15 @@
+.venv/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+dashboard/node_modules/
+dashboard/dist/
+*.db
+data/demo/
+data/runs/
+engine/models/*.joblib
+firmware/.pio/
+.git/
+docs/
+attack-lab/
+*.pdf

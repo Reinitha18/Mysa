@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 560" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <style>
+    .board { fill:#f6efe3; stroke:#9c7a4a; stroke-width:3; }
+    .room  { fill:#ffffff; stroke:#c7d2fe; stroke-width:1.5; }
+    .comp  { fill:#e8f6fd; stroke:#0369B1; stroke-width:1.5; rx:6; }
+    .act   { fill:#fff6e8; stroke:#D9922E; stroke-width:1.5; rx:6; }
+    .t   { fill:#0c1f5b; font-size:12px; font-weight:600; }
+    .s   { fill:#44506b; font-size:10.5px; }
+    .dim { fill:#8a6a3a; font-size:11px; }
+    .dl  { stroke:#8a6a3a; stroke-width:1; }
+    .zt  { fill:#0c1f5b; font-size:14px; font-weight:700; }
+  </style>
+
+  <text x="24" y="30" fill="#0c1f5b" font-size="20" font-weight="700">Plan de la maquette Mysa</text>
+  <text x="24" y="50" class="s">Vue de dessus — planche de démonstration (contreplaqué ou carton rigide). Échelle indicative.</text>
+
+  <!-- Planche -->
+  <rect class="board" x="60" y="80" width="700" height="400" rx="8"/>
+
+  <!-- Dimensions planche -->
+  <line class="dl" x1="60" y1="500" x2="760" y2="500"/>
+  <text x="380" y="516" class="dim">80 cm</text>
+  <line class="dl" x1="40" y1="80" x2="40" y2="480"/>
+  <text x="18" y="285" class="dim" transform="rotate(-90 18 285)">50 cm</text>
+
+  <!-- Zone ENTRÉE -->
+  <rect class="room" x="80" y="100" width="300" height="360" rx="6"/>
+  <text x="96" y="124" class="zt">Entrée</text>
+
+  <rect class="comp" x="100" y="140" width="120" height="48"/>
+  <text x="112" y="160" class="t">Lecteur RFID</text>
+  <text x="112" y="176" class="s">RC522 — à hauteur de main</text>
+
+  <rect class="act" x="240" y="140" width="120" height="48"/>
+  <text x="252" y="160" class="t">Serrure servo</text>
+  <text x="252" y="176" class="s">SG90 sur pêne factice</text>
+
+  <rect class="comp" x="100" y="210" width="120" height="48"/>
+  <text x="112" y="230" class="t">PIR (HC-SR501)</text>
+  <text x="112" y="246" class="s">angle vers l'entrée</text>
+
+  <rect class="act" x="240" y="210" width="120" height="48"/>
+  <text x="252" y="230" class="t">Buzzer + LED</text>
+  <text x="252" y="246" class="s">alarme locale</text>
+
+  <rect class="comp" x="100" y="300" width="260" height="60"/>
+  <text x="112" y="322" class="t">Nœud ESP32 « sec-01 »</text>
+  <text x="112" y="340" class="s">boîtier + alimentation 5 V dédiée</text>
+  <text x="112" y="354" class="s">(servo alimenté à part)</text>
+
+  <!-- Zone SALON -->
+  <rect class="room" x="400" y="100" width="340" height="360" rx="6"/>
+  <text x="416" y="124" class="zt">Salon</text>
+
+  <rect class="act" x="420" y="140" width="130" height="48"/>
+  <text x="432" y="160" class="t">Lampe (relais)</text>
+  <text x="432" y="176" class="s">basse tension pour la maquette</text>
+
+  <rect class="comp" x="570" y="140" width="150" height="48"/>
+  <text x="582" y="160" class="t">DHT22</text>
+  <text x="582" y="176" class="s">température / humidité</text>
+
+  <rect class="comp" x="420" y="300" width="300" height="60"/>
+  <text x="432" y="322" class="t">Nœud ESP32 « cmf-01 »</text>
+  <text x="432" y="340" class="s">boîtier + alimentation 5 V ;</text>
+  <text x="432" y="354" class="s">relais câblé en basse tension (sécurité)</text>
+
+  <!-- Téléphone caméra -->
+  <rect class="comp" x="560" y="212" width="170" height="64" style="fill:#e8f6fd;stroke:#00BAED"/>
+  <text x="572" y="234" class="t">Téléphone — caméra</text>
+  <text x="572" y="252" class="s">sur support, vue d'ensemble</text>
+  <text x="572" y="268" class="s">de l'entrée + salon</text>
+
+  <text x="60" y="540" class="s">Fixations : vis + entretoises nylon pour les cartes ; colliers pour les câbles ; double-face mousse pour PIR/DHT22 ; support réglable pour le téléphone.</text>
+</svg>

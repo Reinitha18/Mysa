@@ -1,0 +1,14 @@
+{
+  "category": "mouvement",
+  "dataset": "IoT_Motion_Light.csv",
+  "n_test_windows": 3854,
+  "windows_already_constant_share": 0.0033731188375713543,
+  "reference_false_alarm_rate": 0.052153606642449404,
+  "detection_by_anomaly": {
+    "pic (8 écarts-types)": 0.6792942397509082,
+    "pic (4 écarts-types)": 0.1411520498183705,
+    "valeur bloquée": 1.0,
+    "oscillation extrême": 1.0,
+    "décalage de niveau (+4 écarts-types)": 0.052153606642449404
+  }
+}

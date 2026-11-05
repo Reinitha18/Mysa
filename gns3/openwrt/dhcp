@@ -1,0 +1,38 @@
+# /etc/config/dhcp — routeur pare-feu Mysa (OpenWrt).
+# Un pool DHCP par VLAN. Le hub reçoit une adresse fixe (réservation par MAC) : 192.168.30.20,
+# valeur à reporter dans MYSA_HUB_IP (.env) et dans le certificat (scripts/gen_certs.sh).
+
+config dnsmasq
+	option domainneeded '1'
+	option localise_queries '1'
+	option rebind_protection '1'
+	option local '/mysa/'
+	option domain 'mysa'
+	option authoritative '1'
+
+# --- VLAN 20 : objets connectés ---
+config dhcp 'objets'
+	option interface 'objets'
+	option start '100'
+	option limit '100'
+	option leasetime '12h'
+
+# --- VLAN 30 : hub ---
+config dhcp 'hub'
+	option interface 'hub'
+	option start '100'
+	option limit '50'
+	option leasetime '12h'
+
+# Adresse fixe du hub (remplacer la MAC par celle de la VM hub, visible dans GNS3).
+config host
+	option name 'mysa-hub'
+	option mac '0c:00:00:00:30:20'
+	option ip '192.168.30.20'
+
+# --- VLAN 40 : attaquant ---
+config dhcp 'attaquant'
+	option interface 'attaquant'
+	option start '100'
+	option limit '50'
+	option leasetime '12h'
