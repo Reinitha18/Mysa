@@ -2,11 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useMysa } from "./useMysa";
 import { getAuthStatus, logout } from "./api";
 import { Toasts } from "./components/Bits";
+import Logo from "./components/Logo";
+import ThemeToggle from "./components/ThemeToggle";
 import Login from "./components/Login";
 import Home from "./pages/Home";
 import Alerts from "./pages/Alerts";
 import Device from "./pages/Device";
 import Engine from "./pages/Engine";
+import Badges from "./pages/Badges";
+import Validation from "./pages/Validation";
 
 const route = () => window.location.hash.replace(/^#/, "") || "/";
 
@@ -47,6 +51,8 @@ function Dashboard({ onLogout }) {
   if (deviceMatch) page = <Device id={decodeURIComponent(deviceMatch[1])} mysa={mysa} go={go} />;
   else if (path === "/alertes") page = <Alerts mysa={mysa} go={go} />;
   else if (path === "/moteur") page = <Engine mysa={mysa} go={go} />;
+  else if (path === "/badges") page = <Badges mysa={mysa} go={go} />;
+  else if (path === "/validation") page = <Validation go={go} />;
   else page = <Home mysa={mysa} go={go} />;
 
   const tab = deviceMatch ? "/" : path;
@@ -55,16 +61,17 @@ function Dashboard({ onLogout }) {
       <a className="skip" href="#main">Aller au contenu</a>
       <header className="topbar">
         <a href="#/" className="brand" aria-label="Mysa, accueil">
-          <img src={`${import.meta.env.BASE_URL}mysa-logo.png`} alt="Mysa" />
+          <Logo height={42} />
         </a>
         <nav aria-label="Sections">
-          {[["/", "Maison"], ["/alertes", "Alertes"], ["/moteur", "Moteur"]].map(([p, label]) => (
+          {[["/", "Maison"], ["/alertes", "Alertes"], ["/badges", "Badges"], ["/moteur", "Moteur"], ["/validation", "Validation"]].map(([p, label]) => (
             <a key={p} href={`#${p}`} aria-current={tab === p ? "page" : undefined}>
               {label}
               {p === "/alertes" && openAlerts > 0 && <span className="badge" aria-label={`${openAlerts} récentes`}>{openAlerts}</span>}
             </a>
           ))}
         </nav>
+        <ThemeToggle />
         <span className={`live ${mysa.live ? "is-on" : ""}`} title="Flux d'alertes en temps réel">
           <i aria-hidden="true" />{mysa.live ? "En direct" : "Hors ligne"}
         </span>

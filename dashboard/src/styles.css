@@ -338,3 +338,44 @@ tbody tr:last-child td { border-bottom: 0; }
 .access-list p { margin: 2px 0; }
 .access-list img, .access-list .no-capture { width: 96px; height: 72px; flex: none; border-radius: 8px; object-fit: cover; }
 .access-list .no-capture { display: grid; place-items: center; background: var(--calm-bg); color: var(--muted); font-size: 0.75rem; text-align: center; }
+
+/* ---------- Logo SVG, bandeau de chiffres, sélecteur de thème (base commune clair/sombre) ---------- */
+.logo { display: block; overflow: visible; }
+.logo-word { font: 600 40px "Lexend", system-ui, sans-serif; letter-spacing: -0.02em; fill: var(--ink); }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; padding: 14px 16px; border-radius: var(--radius); background: var(--paper); border: 1px solid var(--line); }
+.kpi strong { font: 600 2rem/1 var(--font-display); color: var(--navy); font-variant-numeric: tabular-nums; }
+.kpi-unit { font: 0.8rem var(--font-mono); color: var(--muted); }
+.kpi-label { flex-basis: 100%; font-size: 0.8rem; color: var(--muted); }
+.theme-toggle { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+.theme-toggle button { display: grid; place-items: center; width: 30px; height: 28px; border: 0; border-radius: 999px; background: none; color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s; }
+.theme-toggle button:hover { color: var(--ink); }
+.theme-toggle button[aria-pressed="true"] { background: var(--navy); color: #fff; }
+.login-theme { position: fixed; top: 16px; right: 16px; }
+
+/* ---------- Badges autorisés, journal de validation ---------- */
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.section-title { margin: 28px 0 12px; }
+.note { padding: 10px 14px; border-radius: 10px; background: var(--calm-bg); color: var(--navy); margin: 0 0 16px; }
+.note-watch { background: var(--watch-bg); color: #8a540f; }
+.page > .panel, .page > .table-wrap, .page > .kpis, .page > .filters { margin-bottom: 16px; }
+.badge-form { display: grid; gap: 10px; }
+.badge-form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.badge-form input { flex: 1 1 200px; max-width: 320px; font: 500 1rem var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); }
+.badge-form input:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+.badge-form input[aria-invalid="true"] { border-color: var(--alert); }
+.badge-refused { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.btn-danger { border: 1px solid var(--alert); background: var(--alert); color: #fff; border-radius: 8px; padding: 5px 12px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+.btn-danger:hover { filter: brightness(1.1); }
+.btn-danger:disabled { opacity: 0.5; cursor: default; }
+.confirm { display: inline-flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: flex-end; text-align: right; }
+.badges-foot { margin-top: 16px; }
+.status.tone-idle { background: var(--grid); color: var(--muted); }
+.validation td { vertical-align: top; }
+.validation-episodes { margin-top: 16px; }
+.cmd-line { margin: 10px 0; padding: 10px 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-family: var(--font-mono); }
+@media (max-width: 1000px) {
+  .topbar { flex-wrap: wrap; row-gap: 6px; }
+  .topbar nav { order: 3; flex-basis: 100%; overflow-x: auto; }
+}

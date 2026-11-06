@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { describeEpisode, deviceName, sensorLabel } from "../labels";
 
 // Pastille d'état : la couleur est toujours doublée d'un libellé (lisible sans distinguer les couleurs).
@@ -60,4 +60,23 @@ function Toast({ alert, onClose, go }) {
       </div>
     </div>
   );
+}
+
+// Compteur qui monte jusqu'à sa valeur (désactivé si l'utilisateur réduit les animations).
+export function CountUp({ value, duration = 900 }) {
+  const [shown, setShown] = useState(0);
+  const from = useRef(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { setShown(value); return; }
+    const start = performance.now(), a = from.current;
+    let raf;
+    const tick = (t) => {
+      const p = Math.min(1, (t - start) / duration);
+      setShown(Math.round(a + (value - a) * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick); else from.current = value;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration]);
+  return <>{shown}</>;
 }

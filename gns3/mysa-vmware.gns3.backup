@@ -1,0 +1,432 @@
+{
+    "project_id": "73af87cc-2426-4ab9-a872-c91026a970cb",
+    "name": "mysa-vmware",
+    "type": "topology",
+    "revision": 9,
+    "version": "2.2.0",
+    "auto_start": false,
+    "auto_open": false,
+    "auto_close": true,
+    "scene_width": 2000,
+    "scene_height": 1000,
+    "zoom": 100,
+    "show_layers": false,
+    "snap_to_grid": false,
+    "show_grid": false,
+    "show_interface_labels": true,
+    "grid_size": 75,
+    "drawing_grid_size": 25,
+    "topology": {
+        "computes": [],
+        "drawings": [
+            {
+                "drawing_id": "be87d06d-d629-4726-ab6b-8a74232695c7",
+                "locked": false,
+                "rotation": 0,
+                "svg": "<svg height=\"20\" width=\"115\"><text fill=\"#1a4f8b\" fill-opacity=\"1.0\" font-family=\"TypeWriter\" font-size=\"10\" font-weight=\"bold\">WAN -> e0 OpenWrt</text></svg>",
+                "x": -480,
+                "y": -60,
+                "z": 2
+            },
+            {
+                "drawing_id": "b3d1d58d-5e79-4d01-8049-98c13d837179",
+                "locked": false,
+                "rotation": 0,
+                "svg": "<svg height=\"20\" width=\"251\"><text fill=\"#1a4f8b\" fill-opacity=\"1.0\" font-family=\"TypeWriter\" font-size=\"10\" font-weight=\"bold\">e1 OpenWrt -> sw-mysa Ethernet0 (trunk)</text></svg>",
+                "x": -240,
+                "y": -60,
+                "z": 2
+            },
+            {
+                "drawing_id": "359f9f63-1ebd-4af1-8999-fec4ed9c9b27",
+                "locked": false,
+                "rotation": 0,
+                "svg": "<svg height=\"20\" width=\"183\"><text fill=\"#1a4f8b\" fill-opacity=\"1.0\" font-family=\"TypeWriter\" font-size=\"10\" font-weight=\"bold\">Ethernet1 = VLAN 20 : objets</text></svg>",
+                "x": 120,
+                "y": -175,
+                "z": 2
+            },
+            {
+                "drawing_id": "f6ad734e-83a8-44fd-a1d7-5dd98c8dcc8e",
+                "locked": false,
+                "rotation": 0,
+                "svg": "<svg height=\"20\" width=\"264\"><text fill=\"#1a4f8b\" fill-opacity=\"1.0\" font-family=\"TypeWriter\" font-size=\"10\" font-weight=\"bold\">Ethernet2 = VLAN 30 : Hub (192.168.30.20)</text></svg>",
+                "x": 300,
+                "y": -30,
+                "z": 2
+            },
+            {
+                "drawing_id": "fb34b4c8-8024-42ed-b632-cb1f85a0eb94",
+                "locked": false,
+                "rotation": 0,
+                "svg": "<svg height=\"20\" width=\"220\"><text fill=\"#1a4f8b\" fill-opacity=\"1.0\" font-family=\"TypeWriter\" font-size=\"10\" font-weight=\"bold\">Ethernet3 = VLAN 40 : Kali (isole)</text></svg>",
+                "x": 300,
+                "y": 130,
+                "z": 2
+            }
+        ],
+        "links": [
+            {
+                "filters": {},
+                "link_id": "33dccae2-65fd-457a-8bfe-dccf9aa27c93",
+                "link_style": {},
+                "suspend": false,
+                "nodes": [
+                    {
+                        "adapter_number": 0,
+                        "node_id": "e3060555-d66a-40fc-b403-59254cd5f9a0",
+                        "port_number": 0
+                    },
+                    {
+                        "adapter_number": 0,
+                        "node_id": "6c5d206d-f54a-4c38-ae09-a5c12d5c80b8",
+                        "port_number": 0
+                    }
+                ]
+            },
+            {
+                "filters": {},
+                "link_id": "a5da5cc2-884c-49da-8e1e-f720bc670c02",
+                "link_style": {},
+                "suspend": false,
+                "nodes": [
+                    {
+                        "adapter_number": 1,
+                        "node_id": "6c5d206d-f54a-4c38-ae09-a5c12d5c80b8",
+                        "port_number": 0
+                    },
+                    {
+                        "adapter_number": 0,
+                        "node_id": "d3f7ab24-f15a-401d-b98f-910ffa7f5d24",
+                        "port_number": 0
+                    }
+                ]
+            },
+            {
+                "filters": {},
+                "link_id": "b8a676ae-f7df-43d0-9eb2-b0bd5efb9a36",
+                "link_style": {},
+                "suspend": false,
+                "nodes": [
+                    {
+                        "adapter_number": 0,
+                        "node_id": "d3f7ab24-f15a-401d-b98f-910ffa7f5d24",
+                        "port_number": 1
+                    },
+                    {
+                        "adapter_number": 0,
+                        "node_id": "73b6f38c-e7e3-46d1-a409-6e337bf71784",
+                        "port_number": 0
+                    }
+                ]
+            },
+            {
+                "filters": {},
+                "link_id": "4071c356-0787-44db-a9cb-8e4e2fd00bb4",
+                "link_style": {},
+                "suspend": false,
+                "nodes": [
+                    {
+                        "adapter_number": 0,
+                        "node_id": "d3f7ab24-f15a-401d-b98f-910ffa7f5d24",
+                        "port_number": 2
+                    },
+                    {
+                        "adapter_number": 0,
+                        "node_id": "6f69d78d-554a-4eb1-8772-b2e88cf8f96d",
+                        "port_number": 0
+                    }
+                ]
+            },
+            {
+                "filters": {},
+                "link_id": "df47e204-7133-4f60-b5c2-a47f5a83ef94",
+                "link_style": {},
+                "suspend": false,
+                "nodes": [
+                    {
+                        "adapter_number": 0,
+                        "node_id": "d3f7ab24-f15a-401d-b98f-910ffa7f5d24",
+                        "port_number": 3
+                    },
+                    {
+                        "adapter_number": 0,
+                        "node_id": "c972b308-5be5-461a-a112-45324d774528",
+                        "port_number": 0
+                    }
+                ]
+            }
+        ],
+        "nodes": [
+            {
+                "compute_id": "local",
+                "console": null,
+                "console_auto_start": false,
+                "console_type": "none",
+                "custom_adapters": [],
+                "first_port_name": null,
+                "height": 32,
+                "label": {
+                    "rotation": 0,
+                    "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
+                    "text": "sw-mysa",
+                    "x": 5,
+                    "y": -25
+                },
+                "locked": false,
+                "name": "sw-mysa",
+                "node_id": "d3f7ab24-f15a-401d-b98f-910ffa7f5d24",
+                "node_type": "ethernet_switch",
+                "port_name_format": "Ethernet{0}",
+                "port_segment_size": 0,
+                "properties": {
+                    "ports_mapping": [
+                        {
+                            "name": "Ethernet0",
+                            "port_number": 0,
+                            "type": "dot1q",
+                            "vlan": 1
+                        },
+                        {
+                            "name": "Ethernet1",
+                            "port_number": 1,
+                            "type": "access",
+                            "vlan": 20
+                        },
+                        {
+                            "name": "Ethernet2",
+                            "port_number": 2,
+                            "type": "access",
+                            "vlan": 30
+                        },
+                        {
+                            "name": "Ethernet3",
+                            "port_number": 3,
+                            "type": "access",
+                            "vlan": 40
+                        },
+                        {
+                            "name": "Ethernet4",
+                            "port_number": 4,
+                            "type": "access",
+                            "vlan": 1
+                        },
+                        {
+                            "name": "Ethernet5",
+                            "port_number": 5,
+                            "type": "access",
+                            "vlan": 1
+                        },
+                        {
+                            "name": "Ethernet6",
+                            "port_number": 6,
+                            "type": "access",
+                            "vlan": 1
+                        },
+                        {
+                            "name": "Ethernet7",
+                            "port_number": 7,
+                            "type": "access",
+                            "vlan": 1
+                        }
+                    ]
+                },
+                "symbol": ":/symbols/ethernet_switch.svg",
+                "width": 72,
+                "x": 0,
+                "y": 0,
+                "z": 1
+            },
+            {
+                "compute_id": "local",
+                "console": null,
+                "console_auto_start": false,
+                "console_type": "none",
+                "custom_adapters": [],
+                "first_port_name": null,
+                "height": 71,
+                "label": {
+                    "rotation": 0,
+                    "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
+                    "text": "WAN",
+                    "x": 5,
+                    "y": -25
+                },
+                "locked": false,
+                "name": "WAN",
+                "node_id": "e3060555-d66a-40fc-b403-59254cd5f9a0",
+                "node_type": "cloud",
+                "port_name_format": "Ethernet{0}",
+                "port_segment_size": 0,
+                "properties": {
+                    "ports_mapping": [
+                        {
+                            "interface": "Ethernet",
+                            "name": "Ethernet",
+                            "port_number": 0,
+                            "type": "ethernet"
+                        }
+                    ],
+                    "remote_console_host": "",
+                    "remote_console_http_path": "/",
+                    "remote_console_port": 23,
+                    "remote_console_type": "none"
+                },
+                "symbol": ":/symbols/cloud.svg",
+                "width": 159,
+                "x": -520,
+                "y": -150,
+                "z": 1
+            },
+            {
+                "compute_id": "local",
+                "console": null,
+                "console_auto_start": false,
+                "console_type": "none",
+                "custom_adapters": [],
+                "first_port_name": null,
+                "height": 60,
+                "label": {
+                    "rotation": 0,
+                    "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
+                    "text": "OpenWrt",
+                    "x": 5,
+                    "y": -25
+                },
+                "locked": false,
+                "name": "OpenWrt",
+                "node_id": "6c5d206d-f54a-4c38-ae09-a5c12d5c80b8",
+                "node_type": "vmware",
+                "port_name_format": "Ethernet{0}",
+                "port_segment_size": 0,
+                "properties": {
+                    "adapter_type": "e1000",
+                    "adapters": 2,
+                    "headless": false,
+                    "linked_clone": false,
+                    "on_close": "power_off",
+                    "use_any_adapter": true,
+                    "vmx_path": "C:/MYSA/OpenWrt/OpenWrt.vmx"
+                },
+                "symbol": ":/symbols/vmware_guest.svg",
+                "width": 65,
+                "x": -250,
+                "y": -150,
+                "z": 1
+            },
+            {
+                "compute_id": "local",
+                "console": null,
+                "console_auto_start": false,
+                "console_type": "none",
+                "custom_adapters": [],
+                "first_port_name": null,
+                "height": 71,
+                "label": {
+                    "rotation": 0,
+                    "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
+                    "text": "objets",
+                    "x": 5,
+                    "y": -25
+                },
+                "locked": false,
+                "name": "objets",
+                "node_id": "73b6f38c-e7e3-46d1-a409-6e337bf71784",
+                "node_type": "cloud",
+                "port_name_format": "Ethernet{0}",
+                "port_segment_size": 0,
+                "properties": {
+                    "ports_mapping": [
+                        {
+                            "interface": "Ethernet",
+                            "name": "Ethernet",
+                            "port_number": 0,
+                            "type": "ethernet"
+                        }
+                    ],
+                    "remote_console_host": "",
+                    "remote_console_http_path": "/",
+                    "remote_console_port": 23,
+                    "remote_console_type": "none"
+                },
+                "symbol": ":/symbols/cloud.svg",
+                "width": 159,
+                "x": 220,
+                "y": -250,
+                "z": 1
+            },
+            {
+                "compute_id": "local",
+                "console": null,
+                "console_auto_start": false,
+                "console_type": "none",
+                "custom_adapters": [],
+                "first_port_name": null,
+                "height": 60,
+                "label": {
+                    "rotation": 0,
+                    "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
+                    "text": "Hub",
+                    "x": 5,
+                    "y": -25
+                },
+                "locked": false,
+                "name": "Hub",
+                "node_id": "6f69d78d-554a-4eb1-8772-b2e88cf8f96d",
+                "node_type": "vmware",
+                "port_name_format": "Ethernet{0}",
+                "port_segment_size": 0,
+                "properties": {
+                    "adapter_type": "e1000",
+                    "adapters": 1,
+                    "headless": false,
+                    "linked_clone": false,
+                    "on_close": "power_off",
+                    "use_any_adapter": true,
+                    "vmx_path": "C:/MYSA/Hub/Hub.vmx"
+                },
+                "symbol": ":/symbols/vmware_guest.svg",
+                "width": 65,
+                "x": 220,
+                "y": -60,
+                "z": 1
+            },
+            {
+                "compute_id": "local",
+                "console": null,
+                "console_auto_start": false,
+                "console_type": "none",
+                "custom_adapters": [],
+                "first_port_name": null,
+                "height": 60,
+                "label": {
+                    "rotation": 0,
+                    "style": "font-family: TypeWriter;font-size: 10.0;font-weight: bold;fill: #000000;fill-opacity: 1.0;",
+                    "text": "Kali",
+                    "x": 5,
+                    "y": -25
+                },
+                "locked": false,
+                "name": "Kali",
+                "node_id": "c972b308-5be5-461a-a112-45324d774528",
+                "node_type": "vmware",
+                "port_name_format": "Ethernet{0}",
+                "port_segment_size": 0,
+                "properties": {
+                    "adapter_type": "e1000",
+                    "adapters": 1,
+                    "headless": false,
+                    "linked_clone": false,
+                    "on_close": "power_off",
+                    "use_any_adapter": true,
+                    "vmx_path": "C:/MYSA/Kali/Kali.vmx"
+                },
+                "symbol": ":/symbols/vmware_guest.svg",
+                "width": 65,
+                "x": 220,
+                "y": 100,
+                "z": 1
+            }
+        ]
+    }
+}

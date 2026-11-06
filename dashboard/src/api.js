@@ -27,6 +27,8 @@ export const getHistory = (deviceId, limit = 400, sensor) =>
 export const getRisk = (deviceId) => json(`/api/devices/${encodeURIComponent(deviceId)}/risk`);
 export const getActuators = () => json("/api/commands");
 export const getLastRefusedBadge = () => json("/api/badges/last-refused");
+export const getAuthorizedBadges = () => json("/api/badges/authorized");
+export const getValidationRuns = (limit = 20) => json(`/api/validation/runs?limit=${limit}`);
 export const getAccessLog = (limit = 20) => json(`/api/badges/access?limit=${limit}`);
 export const accessCaptureUrl = (accessId) => `/api/badges/access/${accessId}/capture`;
 export const sendCommand = (device_id, actuator, value) =>

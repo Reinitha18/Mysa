@@ -5,6 +5,8 @@ Mysa (analyse du chapitre 4) et ce qu'elle donne AVEC (mesuré maintenant : bloq
 
 À lancer depuis la VM Kali, le hub étant en marche :
   python3 attack-lab/run_report.py --out attack-lab/report.md
+La campagne est aussi enregistrée dans le journal de validation du dashboard (page « Validation »),
+sauf avec --no-push.
 
 ⚠️ Lab uniquement, sur le prototype Mysa, réseau isolé. Voir attack-lab/README.md.
 """
@@ -18,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "lib"))
 sys.path.insert(0, os.path.join(HERE, "scenarios"))
 
-from common import api_get, load_cfg  # noqa: E402
+from common import api_get, api_post, load_cfg  # noqa: E402
 import ti01_ecoute, ti02_bruteforce, ti03_usurpation, ti04_saturation, ti05_camera  # noqa: E402
 
 SCENARIOS = [ti01_ecoute, ti02_bruteforce, ti03_usurpation, ti04_saturation, ti05_camera]
@@ -69,15 +71,37 @@ def verdict(res, detected, delay):
     return "— non exécuté"
 
 
+def status_of(res, detected):
+    """Verdict sous forme de code, pour le journal de validation du hub (mêmes règles que verdict())."""
+    if res.get("bloque"):
+        return "blocked"
+    if detected:
+        return "detected"
+    return "undetected" if res.get("execute") else "not_run"
+
+
+def push_run(cfg, started, finished, rows):
+    """Envoie la campagne au journal de validation du dashboard (POST /api/validation/runs)."""
+    payload = {
+        "started_ts": started, "finished_ts": finished, "target": cfg["host"],
+        "results": [{"ti": res["ti"], "name": res["nom"], "before": AVANT.get(res["ti"]), "status": status,
+                     "delay_s": delay, "note": res["note"]} for res, status, delay in rows],
+    }
+    return api_post(cfg, "/api/validation/runs", payload)["id"]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Rapport avant/après du lab d'attaque Mysa")
     ap.add_argument("--out", default=os.path.join(HERE, "report.md"))
     ap.add_argument("--detect-timeout", type=float, default=25.0)
+    ap.add_argument("--no-push", action="store_true",
+                    help="ne pas envoyer la campagne au journal de validation du dashboard")
     args = ap.parse_args()
     cfg = load_cfg()
 
     print(f"Cible : {cfg['host']} (MQTT {cfg['mqtt_port']}, API {cfg['api_base']})\n")
-    rows = []
+    rows, journal = [], []
+    started = datetime.now(timezone.utc).isoformat()
     for mod in SCENARIOS:
         res = mod.run(cfg)
         detected, delay = wait_detection(cfg, res.get("evidence"), args.detect_timeout)
@@ -95,7 +119,9 @@ def main():
         print(f"{res['ti']}  {res['nom']:<28} -> {v}")
         print(f"        {res['note']}")
         rows.append((res, v))
+        journal.append((res, status_of(res, detected), delay))
 
+    finished = datetime.now(timezone.utc).isoformat()
     lines = [
         "# Lab d'attaque Mysa — rapport avant / après",
         "",
@@ -124,6 +150,11 @@ def main():
     with open(args.out, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     print(f"\nRapport écrit : {args.out}")
+    if not args.no_push:
+        try:
+            print(f"Campagne n° {push_run(cfg, started, finished, journal)} enregistrée dans le journal de validation du dashboard.")
+        except Exception as err:  # le rapport Markdown reste produit : l'envoi est un plus
+            print(f"⚠️  Journal de validation non mis à jour ({err}). Mot de passe : DASHBOARD_PASSWORD dans lab.env.")
 
 
 if __name__ == "__main__":

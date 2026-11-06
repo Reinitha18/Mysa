@@ -111,6 +111,35 @@ CREATE TABLE IF NOT EXISTS access_log (
     capture TEXT
 );
 
+-- Badges autorisés connus du hub. Le nœud sec-01 ne publie que leur NOMBRE (capteur « badges »), pas
+-- leurs UID : le hub tient donc un registre des badges ajoutés ou retirés depuis le dashboard
+-- (removed_ts renseigné = retiré), complété à la lecture par les badges déjà acceptés au lecteur.
+CREATE TABLE IF NOT EXISTS badge_registry (
+    uid TEXT PRIMARY KEY,
+    added_ts TEXT,
+    removed_ts TEXT
+);
+
+-- Journal des campagnes de validation (lab d'attaque, scénarios TI-01 à TI-05) : une campagne,
+-- puis un résultat par scénario. status : blocked | detected | undetected | not_run.
+CREATE TABLE IF NOT EXISTS attack_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_ts TEXT NOT NULL,
+    finished_ts TEXT NOT NULL,
+    target TEXT
+);
+CREATE TABLE IF NOT EXISTS attack_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id INTEGER NOT NULL,
+    ti TEXT NOT NULL,
+    name TEXT NOT NULL,
+    before TEXT,
+    status TEXT NOT NULL,
+    delay_s REAL,
+    note TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_attack_results_run ON attack_results (run_id);
+
 CREATE INDEX IF NOT EXISTS idx_telemetry_device ON telemetry (device_id, ts);
 CREATE INDEX IF NOT EXISTS idx_alerts_device ON alerts (device_id, ts);
 CREATE INDEX IF NOT EXISTS idx_telemetry_stream ON telemetry (device_id, sensor, ts);
@@ -499,3 +528,74 @@ def recent_messages(sensors, since_ts: str, device_id: str | None = None) -> lis
     query += " ORDER BY ts ASC"
     with get_connection() as conn:
         return [dict(r) for r in conn.execute(query, params).fetchall()]
+
+
+# ---------- Badges autorisés (registre du hub) ----------
+def normalize_uid(uid: str) -> str:
+    """UID RFID en majuscules, séparés par un seul espace (« 29 2F 3A 03 »)."""
+    return " ".join(uid.upper().split())
+
+
+def registry_add_badge(uid: str, ts: str | None = None):
+    """Badge autorisé depuis le dashboard (commande badge_add) : (ré)active son entrée."""
+    ts = ts or datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute("INSERT INTO badge_registry (uid, added_ts) VALUES (?, ?) "
+                     "ON CONFLICT(uid) DO UPDATE SET added_ts = excluded.added_ts, removed_ts = NULL",
+                     (normalize_uid(uid), ts))
+
+
+def registry_remove_badge(uid: str, ts: str | None = None):
+    """Badge retiré depuis le dashboard (commande badge_del). Une entrée est créée au besoin, pour
+    qu'un badge connu seulement par le journal des accès disparaisse aussi de la liste."""
+    ts = ts or datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        conn.execute("INSERT INTO badge_registry (uid, removed_ts) VALUES (?, ?) "
+                     "ON CONFLICT(uid) DO UPDATE SET removed_ts = excluded.removed_ts",
+                     (normalize_uid(uid), ts))
+
+
+def list_authorized_badges() -> list[dict]:
+    """Badges que le hub sait autorisés : ajoutés depuis le dashboard, ou déjà acceptés au lecteur.
+    Un badge retiré reste exclu tant qu'il n'est pas de nouveau accepté après son retrait."""
+    with get_connection() as conn:
+        registry = {r["uid"]: dict(r) for r in conn.execute("SELECT * FROM badge_registry")}
+        usage = {r["uid"]: dict(r) for r in conn.execute(
+            "SELECT UPPER(TRIM(uid)) AS uid, MAX(ts) AS last_used, SUM(granted) AS granted, "
+            "SUM(1 - granted) AS refused, MAX(CASE WHEN granted = 1 THEN ts END) AS last_granted "
+            "FROM access_log WHERE uid IS NOT NULL AND TRIM(uid) != '' GROUP BY UPPER(TRIM(uid))")}
+    badges = []
+    for uid in set(registry) | {u for u, v in usage.items() if v["last_granted"]}:
+        reg, use = registry.get(uid), usage.get(uid, {})
+        removed, last_granted = reg and reg["removed_ts"], use.get("last_granted")
+        if removed and not (last_granted and _parse(last_granted) > _parse(removed)):
+            continue
+        badges.append({"uid": uid, "source": "dashboard" if reg and reg["added_ts"] else "lecteur",
+                       "added_ts": reg["added_ts"] if reg else None, "last_used": use.get("last_used"),
+                       "granted": use.get("granted") or 0, "refused": use.get("refused") or 0})
+    badges.sort(key=lambda b: (b["last_used"] is None, b["last_used"] and -_parse(b["last_used"]).timestamp(), b["uid"]))
+    return badges
+
+
+# ---------- Journal des campagnes d'attaque (validation) ----------
+def insert_attack_run(started_ts: str, finished_ts: str, target: str | None, results: list[dict]) -> int:
+    with get_connection() as conn:
+        run_id = conn.execute("INSERT INTO attack_runs (started_ts, finished_ts, target) VALUES (?, ?, ?)",
+                              (started_ts, finished_ts, target)).lastrowid
+        conn.executemany(
+            "INSERT INTO attack_results (run_id, ti, name, before, status, delay_s, note) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [(run_id, r["ti"], r["name"], r.get("before"), r["status"], r.get("delay_s"), r.get("note"))
+             for r in results])
+    return run_id
+
+
+def list_attack_runs(limit: int = 10) -> list[dict]:
+    """Campagnes les plus récentes d'abord, chacune avec ses résultats (dans l'ordre d'exécution)."""
+    with get_connection() as conn:
+        runs = [dict(r) for r in conn.execute("SELECT * FROM attack_runs ORDER BY started_ts DESC, id DESC LIMIT ?",
+                                              (limit,))]
+        for run in runs:
+            run["results"] = [dict(r) for r in conn.execute(
+                "SELECT ti, name, before, status, delay_s, note FROM attack_results WHERE run_id = ? ORDER BY id",
+                (run["id"],))]
+    return runs

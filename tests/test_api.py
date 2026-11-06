@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from api.main import app
-from engine.storage import insert_alert, record_message
+from engine.storage import insert_access, insert_alert, record_message
 
 
 def test_appareils_avec_score_de_risque():
@@ -97,3 +97,56 @@ def test_mode_simulation_signale():
     with TestClient(app) as client:
         dev = [d for d in client.get("/api/devices").json() if d["device_id"] == "esp32-cmf-01"][0]
         assert dev["simulated"] is True
+
+
+def test_badges_autorises_registre_du_hub(monkeypatch):
+    from api.routes import commands
+    sent = []
+    monkeypatch.setattr(commands, "_publish", lambda topic, payload: sent.append((topic, payload)))
+    uids = lambda r: {b["uid"] for b in r["badges"]}
+    with TestClient(app) as client:
+        vide = client.get("/api/badges/authorized").json()
+        assert vide["badges"] == [] and vide["node_count"] is None and vide["unknown_count"] is None
+        # Le nœud annonce 2 badges ; le hub n'en connaît qu'un (déjà accepté au lecteur).
+        record_message("esp32-sec-01", "badges", 2, "count")
+        insert_access("esp32-sec-01", "29 2F 3A 03", True, "2020-01-01T00:00:00+00:00")
+        insert_access("esp32-sec-01", "AA BB CC DD", False, "2020-01-01T00:01:00+00:00")  # refusé : pas autorisé
+        r = client.get("/api/badges/authorized").json()
+        assert r["node_count"] == 2 and r["known_count"] == 1 and r["unknown_count"] == 1
+        assert uids(r) == {"29 2F 3A 03"} and r["badges"][0]["source"] == "lecteur"
+        # Ajout depuis le dashboard : le registre suit la commande envoyée.
+        cmd = {"device_id": "esp32-sec-01", "actuator": "badge_add", "value": "aa bb cc dd"}
+        assert client.post("/api/commands", json=cmd).status_code == 200
+        r = client.get("/api/badges/authorized").json()
+        assert uids(r) == {"29 2F 3A 03", "AA BB CC DD"} and r["unknown_count"] == 0
+        # Retrait : le badge disparaît de la liste.
+        cmd = {"device_id": "esp32-sec-01", "actuator": "badge_del", "value": "29 2F 3A 03"}
+        assert client.post("/api/commands", json=cmd).status_code == 200
+        assert uids(client.get("/api/badges/authorized").json()) == {"AA BB CC DD"}
+        assert sent[-1] == ("home/esp32-sec-01/cmd/badge_del", "29 2F 3A 03")
+        # Un UID mal formé est refusé et ne touche pas le registre.
+        bad = {"device_id": "esp32-sec-01", "actuator": "badge_del", "value": "pas un uid"}
+        assert client.post("/api/commands", json=bad).status_code == 422
+
+
+def test_journal_de_validation_des_campagnes():
+    run = {"started_ts": "2026-11-05T10:00:00+00:00", "finished_ts": "2026-11-05T10:03:00Z", "target": "hub",
+           "results": [{"ti": "TI-01", "name": "Écoute", "before": "Réussie", "status": "blocked", "note": "TLS"},
+                       {"ti": "TI-04", "name": "Saturation", "status": "detected", "delay_s": 8.5, "note": "rythme"},
+                       {"ti": "TI-05", "name": "Caméra", "status": "undetected"}]}
+    # Épisode levé pendant la campagne, et un autre bien avant : seul le premier est associé.
+    insert_alert("esp32-sec-01", "rafale", severity="high", sensor="pir", kind="anomaly", ts="2026-11-05T10:01:00+00:00")
+    insert_alert("esp32-sec-01", "ancien", severity="low", sensor="pir", kind="anomaly", ts="2026-11-04T08:00:00+00:00")
+    with TestClient(app) as client:
+        assert client.get("/api/validation/runs").json() == []
+        assert client.post("/api/validation/runs", json=run).status_code == 201
+        # Charges utiles refusées : statut inconnu, dates inversées, aucun résultat.
+        bad = {**run, "results": [{"ti": "TI-01", "name": "x", "status": "reussi"}]}
+        assert client.post("/api/validation/runs", json=bad).status_code == 422
+        assert client.post("/api/validation/runs", json={**run, "finished_ts": "2026-11-05T09:00:00Z"}).status_code == 422
+        assert client.post("/api/validation/runs", json={**run, "results": []}).status_code == 422
+        runs = client.get("/api/validation/runs").json()
+        assert len(runs) == 1 and [r["ti"] for r in runs[0]["results"]] == ["TI-01", "TI-04", "TI-05"]
+        assert runs[0]["summary"] == {"blocked": 1, "detected": 1, "undetected": 1, "not_run": 0}
+        assert runs[0]["results"][1]["delay_s"] == 8.5
+        assert [e["device_id"] for e in runs[0]["episodes"]] == ["esp32-sec-01"] and len(runs[0]["episodes"]) == 1

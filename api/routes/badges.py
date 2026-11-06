@@ -4,9 +4,11 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from api.routes import camera
-from engine.storage import get_access, last_refused_badge, list_access
+from engine.storage import get_access, get_history, last_refused_badge, list_access, list_authorized_badges
 
 router = APIRouter()
+
+SEC_NODE = "esp32-sec-01"  # nœud qui porte le lecteur RFID
 
 
 @router.get("/last-refused")
@@ -36,3 +38,16 @@ def get_access_capture(access_id: int):
     if not path or not os.path.isfile(path):
         raise HTTPException(404, "Aucune photo pour cet accès")
     return FileResponse(path, media_type="image/jpeg")
+
+
+@router.get("/authorized")
+def get_authorized():
+    """Badges autorisés. Le nœud ne publie que leur nombre (node_count) : la liste vient du registre du
+    hub (badges ajoutés ou retirés depuis le dashboard, badges déjà acceptés au lecteur). unknown_count
+    = badges présents sur le nœud mais inconnus du hub (ajoutés avant, ou sans passer par lui) : ils
+    fonctionnent, mais ne peuvent être retirés qu'en saisissant leur UID."""
+    badges = list_authorized_badges()
+    last = get_history(SEC_NODE, limit=1, sensor="badges")
+    node_count = int(last[0]["value"]) if last else None
+    return {"node_count": node_count, "node_ts": last[0]["ts"] if last else None, "known_count": len(badges),
+            "unknown_count": None if node_count is None else max(0, node_count - len(badges)), "badges": badges}

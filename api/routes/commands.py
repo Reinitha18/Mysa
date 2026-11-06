@@ -14,6 +14,8 @@ import paho.mqtt.publish as publish
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from engine.storage import registry_add_badge, registry_remove_badge
+
 router = APIRouter()
 
 UID_PATTERN = r"^[0-9A-Fa-f]{2}( [0-9A-Fa-f]{2}){3,9}$"  # UID RFID : "29 2F 3A 03"
@@ -85,4 +87,9 @@ def send_command(cmd: Command):
         _publish(topic, cmd.value)
     except (OSError, ValueError) as err:
         raise HTTPException(status_code=502, detail=f"Broker MQTT injoignable : {err}") from None
+    # Le nœud ne publie pas la liste de ses badges : le hub retient ceux qu'il a envoyés (api/routes/badges.py).
+    if cmd.device_id == "esp32-sec-01" and cmd.actuator == "badge_add":
+        registry_add_badge(cmd.value)
+    elif cmd.device_id == "esp32-sec-01" and cmd.actuator == "badge_del":
+        registry_remove_badge(cmd.value)
     return {"topic": topic, "value": cmd.value, "sent": True}

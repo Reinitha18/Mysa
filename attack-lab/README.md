@@ -36,9 +36,13 @@ Installe `nmap`, `mosquitto-clients`, `hydra`, et les modules Python `paho-mqtt`
 
 ```bash
 set -a; source attack-lab/lab.env; set +a                     # charge la configuration
-python3 attack-lab/run_report.py --out attack-lab/report.md   # tout + rapport avant/après
+python3 attack-lab/run_report.py --out attack-lab/report.md   # tout + rapport avant/après + journal du dashboard
 python3 attack-lab/scenarios/ti03_usurpation.py               # un scénario isolé
 ```
+
+La campagne est aussi **journalisée dans le dashboard** (page « Validation » : résultat de chaque TI, délai de
+détection, alertes levées par Mysa pendant l'attaque) ; `--no-push` désactive cet envoi. Si le dashboard est
+protégé par mot de passe, renseigner `DASHBOARD_PASSWORD` dans `lab.env`.
 
 Le rapport `report.md` indique, pour chaque TI : résultat **avant** (système non durci, analyse du
 chapitre 4) et **après** (mesuré : bloqué / détecté avec délai / exécuté non détecté).

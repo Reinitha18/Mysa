@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { login } from "../api";
+import Logo from "./Logo";
+import ThemeToggle from "./ThemeToggle";
 
 // Écran de connexion (MYSA_DASHBOARD_PASSWORD, api/auth.py). Le cookie de session est posé par l'API ;
 // il ouvre aussi l'accès à la page caméra du téléphone, servie par le même hub.
@@ -23,8 +25,9 @@ export default function Login({ onDone }) {
 
   return (
     <main className="login" id="main">
+      <div className="login-theme"><ThemeToggle /></div>
       <form className="panel login-card" onSubmit={submit}>
-        <img src={`${import.meta.env.BASE_URL}mysa-logo.png`} alt="Mysa" />
+        <Logo height={48} />
         <h1>Connexion</h1>
         <p className="muted small">Le tableau de bord commande la serrure et l'alarme : il est réservé aux occupants.</p>
         <label>

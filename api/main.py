@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from engine.storage import init_db, list_alerts, max_alert_id
 from api import auth
-from api.routes import badges, camera, devices, alerts, commands, episodes, notifications, streams
+from api.routes import badges, camera, devices, alerts, commands, episodes, notifications, streams, validation
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DASHBOARD_DIST = os.path.join(ROOT, "dashboard", "dist")
@@ -66,6 +66,7 @@ app.include_router(episodes.router, prefix="/api/episodes", tags=["episodes"])
 app.include_router(streams.router, prefix="/api/streams", tags=["streams"])
 app.include_router(commands.router, prefix="/api/commands", tags=["commands"])
 app.include_router(badges.router, prefix="/api/badges", tags=["badges"])
+app.include_router(validation.router, prefix="/api/validation", tags=["validation"])
 app.include_router(camera.router, prefix="/ws/camera", tags=["camera"])
 
 

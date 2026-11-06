@@ -8,7 +8,7 @@ const CMF = "esp32-cmf-01";
 // Commandes rapides de la maison, regroupées sur l'accueil : porte, alarme (et arrêt de la sirène),
 // lampe, thermostat, et enrôlement en un clic du dernier badge refusé. Les commandes passent par
 // l'API (api/routes/commands.py), qui n'accepte que les actionneurs connus du firmware.
-export default function HouseControls({ mysa }) {
+export default function HouseControls({ mysa, go }) {
   const [actuators, setActuators] = useState(undefined); // undefined = en cours, null = désactivé
   const [refused, setRefused] = useState(null);
   const [msg, setMsg] = useState({});
@@ -137,6 +137,7 @@ export default function HouseControls({ mysa }) {
               <p className="muted small">Aucun badge refusé récemment.</p>
             )}
             <span className="muted small" aria-live="polite">{msg.badge}</span>
+            {go && <button className="link small" onClick={() => go("/badges")}>Gérer les badges autorisés</button>}
           </div>
         )}
 

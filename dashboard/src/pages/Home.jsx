@@ -1,5 +1,5 @@
 import Roof from "../components/Roof";
-import { Status } from "../components/Bits";
+import { Status, CountUp } from "../components/Bits";
 import HouseControls from "../components/HouseControls";
 import CameraLive from "../components/CameraLive";
 import { houseState } from "../useMysa";
@@ -19,7 +19,12 @@ function Room({ device, latest, streams, onOpen }) {
   const silent = streams.filter((s) => s.device_id === device.device_id && s.silent).map((s) => s.sensor);
   return (
     <button className={`room tone-${device.level === "critique" ? "alert" : device.level === "à surveiller" ? "watch" : "calm"}`}
-            onClick={onOpen}>
+            onClick={onOpen}
+            onMouseMove={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+              e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+            }}>
       <div className="room-head">
         <Status level={device.level} label={silent.length ? "Silencieux" : device.label} />
         {device.simulated && <span className="pill pill-sim">Simulé</span>}
@@ -72,6 +77,19 @@ export default function Home({ mysa, go }) {
               )}
             </p>
           </div>
+          <div className="kpis">
+            {[
+              ["Appareils", devices.length, ""],
+              ["Capteurs actifs", active, `/ ${streams.length}`],
+              ["Risque max", Math.max(0, ...devices.map((d) => d.risk)), "/ 100"],
+              ["Alertes récentes", recent.length, ""],
+            ].map(([label, n, unit]) => (
+              <div className="kpi" key={label}>
+                <strong><CountUp value={n} /></strong>{unit && <span className="kpi-unit">{unit}</span>}
+                <span className="kpi-label">{label}</span>
+              </div>
+            ))}
+          </div>
           <div className="rooms">
             {[...devices].sort((a, b) => b.risk - a.risk || deviceName(a.device_id).localeCompare(deviceName(b.device_id), "fr")).map((d) => (
               <Room key={d.device_id} device={d} latest={latest[d.device_id]} streams={streams}
@@ -81,7 +99,7 @@ export default function Home({ mysa, go }) {
         </div>
       </section>
 
-      <HouseControls mysa={mysa} />
+      <HouseControls mysa={mysa} go={go} />
 
       <CameraLive />
 
