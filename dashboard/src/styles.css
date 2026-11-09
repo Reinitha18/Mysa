@@ -340,8 +340,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .access-list .no-capture { display: grid; place-items: center; background: var(--calm-bg); color: var(--muted); font-size: 0.75rem; text-align: center; }
 
 /* ---------- Logo SVG, bandeau de chiffres, sélecteur de thème (base commune clair/sombre) ---------- */
-.logo { display: block; overflow: visible; }
-.logo-word { font: 600 40px "Lexend", system-ui, sans-serif; letter-spacing: -0.02em; fill: var(--ink); }
+.logo { display: inline-flex; align-items: center; position: relative; }
+.logo-img { display: block; width: auto; }
+/* Un seul endroit décide quelle variante s'affiche, avec le sélecteur le plus fort possible
+   (attribut sur :root, posé par theme.js avant le premier rendu) : pas de dépendance à l'ordre
+   d'insertion entre cette feuille et theme-dark.css, qui ne fait qu'ajouter les effets visuels. */
+.logo-img-dark { display: none; }
+:root[data-theme="dark"] .logo-img-light { display: none; }
+:root[data-theme="dark"] .logo-img-dark { display: block; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
 .kpi { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; padding: 14px 16px; border-radius: var(--radius); background: var(--paper); border: 1px solid var(--line); }
 .kpi strong { font: 600 2rem/1 var(--font-display); color: var(--navy); font-variant-numeric: tabular-nums; }
@@ -375,7 +381,98 @@ tbody tr:last-child td { border-bottom: 0; }
 .validation td { vertical-align: top; }
 .validation-episodes { margin-top: 16px; }
 .cmd-line { margin: 10px 0; padding: 10px 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-family: var(--font-mono); }
-@media (max-width: 1000px) {
+@media (max-width: 1240px) {
+  .alerts-toolbar { position: static; }
   .topbar { flex-wrap: wrap; row-gap: 6px; }
   .topbar nav { order: 3; flex-basis: 100%; overflow-x: auto; }
 }
+
+/* ---------- Boutons désactivés ---------- */
+.segmented button:disabled, .btn-ack:disabled, .btn-danger:disabled, .link:disabled, .icon:disabled {
+  opacity: 0.4; cursor: not-allowed; }
+.segmented button[aria-pressed="true"]:disabled { opacity: 0.75; }
+.btn-primary:disabled { cursor: not-allowed; }
+
+/* ---------- Animations (thème clair comme sombre ; coupées si l'utilisateur réduit les animations) ---------- */
+@keyframes rise { from { transform: translateY(14px); opacity: 0; } }
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes wifi { 0%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
+@keyframes drift { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(3%, -2%, 0) scale(1.08); } 100% { transform: translate3d(-3%, 3%, 0) scale(1.03); } }
+@keyframes sheen { to { background-position: -200% 0; } }
+.page, .home { animation: rise 0.45s both; }
+.room, .kpi, .panel, .table-wrap { animation: rise 0.5s both; }
+.kpi:nth-child(2), .room:nth-child(2) { animation-delay: 0.06s; }
+.kpi:nth-child(3), .room:nth-child(3) { animation-delay: 0.12s; }
+.kpi:nth-child(4), .room:nth-child(4) { animation-delay: 0.18s; }
+.room:nth-child(5) { animation-delay: 0.24s; } .room:nth-child(n+6) { animation-delay: 0.3s; }
+.roof { animation: float 7s ease-in-out infinite; filter: drop-shadow(0 10px 18px rgb(3 105 177 / 22%)); }
+.room { transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+.room:hover { transform: translateY(-3px); box-shadow: 0 14px 30px -12px rgb(3 105 177 / 35%); }
+.risk-bar i, .progress i { transition: width 0.6s ease; }
+.btn-primary, .btn-ack, .segmented button { transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.12s; }
+.btn-primary:not(:disabled):active, .btn-ack:not(:disabled):active { transform: scale(0.97); }
+.btn-primary:not(:disabled):hover { box-shadow: 0 6px 16px -6px rgb(3 105 177 / 55%); }
+.topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; opacity: 0.8;
+  background: linear-gradient(90deg, transparent, var(--cyan), var(--blue), transparent, var(--cyan), var(--blue), transparent) 0 0 / 200% 100%;
+  animation: sheen 9s linear infinite; }
+:root[data-theme="light"] body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(50px); opacity: 0.7;
+  background:
+    radial-gradient(38% 34% at 15% 10%, rgb(0 186 237 / 16%), transparent 70%),
+    radial-gradient(36% 38% at 88% 18%, rgb(3 105 177 / 13%), transparent 70%),
+    radial-gradient(42% 38% at 55% 98%, rgb(91 108 255 / 10%), transparent 70%);
+  animation: drift 24s ease-in-out infinite alternate; }
+#root { position: relative; z-index: 1; }
+
+/* ---------- Alertes : barre de filtres, sélection multiple ---------- */
+.alerts-toolbar { position: sticky; top: 62px; z-index: 4; margin: 0 -8px 14px; padding: 10px 8px 2px;
+  background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.alerts-toolbar .filters { margin-bottom: 10px; }
+.search { flex: 1 1 240px; max-width: 360px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--card); color: var(--ink); font: inherit; }
+.search:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+.bulk-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
+  background: var(--calm-bg); border: 1px solid var(--line); animation: rise 0.25s both; }
+th.check, td.check { width: 34px; padding-right: 0; }
+.episodes input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--blue); cursor: pointer; }
+.episodes tr.is-selected { background: var(--calm-bg); }
+.load-more { display: flex; gap: 16px; align-items: center; justify-content: center; margin: 16px 0; }
+
+/* ---------- Gestion, paramètres, formulaires ---------- */
+.manage .panel, .settings .panel { margin-bottom: 16px; }
+.manage h3, .settings h3 { margin: 18px 0 8px; }
+.manage-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 8px; }
+.manage-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.manage-row > .manage-main { flex: 1 1 200px; display: grid; }
+.manage-row > :first-child:not(.manage-main):not(form) { flex: 1 1 200px; }
+.row-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.manage-table td { vertical-align: middle; }
+.manage-table select, .field input, .field select, .setpoint-form input { font: inherit; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--paper); color: var(--ink); }
+.field input:focus, .field select:focus, .setpoint-form input:focus, .manage-table select:focus { outline: 2px solid var(--blue); outline-offset: 1px; }
+.field input[aria-invalid="true"] { border-color: var(--alert); }
+.form-row { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.form-row .field { flex: 1 1 170px; }
+.field { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.account-form { display: grid; gap: 12px; max-width: 420px; }
+.settings-logout { margin-top: 16px; }
+.setpoint-form { display: flex; gap: 8px; align-items: center; }
+.setpoint-form input { width: 9.5ch; flex: 1 1 auto; min-width: 0; }
+.room-wait { margin: 10px 0; }
+.house-picker select { font: inherit; font-weight: 600; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink); cursor: pointer; }
+.settings-link { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--muted); transition: color 0.2s, background 0.2s, transform 0.4s; }
+.settings-link:hover, .settings-link[aria-current="page"] { color: var(--ink); background: var(--calm-bg); }
+.settings-link:hover svg { transform: rotate(60deg); }
+.settings-link svg { transition: transform 0.4s; }
+.banner-watch { background: var(--watch-bg); color: #8a540f; border-color: rgb(244 178 62 / 45%); }
+.banner-watch a { color: inherit; font-weight: 700; }
+
+/* ---------- Champ mot de passe (œil), messages d'aide, formulaire de notifications ---------- */
+.password-field { position: relative; display: block; }
+.password-field input { width: 100%; padding-right: 38px; }
+.password-toggle { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; place-items: center;
+  width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); cursor: pointer; }
+.password-toggle:hover { color: var(--ink); background: var(--calm-bg); }
+.field-hint { margin: 2px 0 0; color: var(--alert); }
+.notif-form fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin: 0 0 14px; }
+.notif-form legend { padding: 0 6px; font-weight: 600; font-size: 0.85rem; color: var(--muted); }
+.notif-save { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }

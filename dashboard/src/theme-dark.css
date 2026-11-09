@@ -62,12 +62,10 @@ body::after {
   background: linear-gradient(90deg, transparent, var(--cyan), var(--indigo), transparent);
   opacity: 0.55;
 }
-.logo-word { font: 600 40px "Lexend", system-ui, sans-serif; letter-spacing: -0.02em; fill: var(--ink); }
-.logo-mark { filter: drop-shadow(0 0 8px rgb(34 211 255 / 55%)); }
-.logo-wifi path { animation: wifi 2.6s ease-in-out infinite; }
-.logo-wifi path:nth-child(2) { animation-delay: 0.25s; }
-@keyframes wifi { 0%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
-.brand:hover .logo-mark { filter: drop-shadow(0 0 14px rgb(34 211 255 / 85%)); }
+/* Le choix clair/sombre du logo est tranché dans styles.css (toujours chargée) ; ici, seulement l'effet. */
+:root[data-theme="dark"] .logo-img-dark { filter: drop-shadow(0 0 10px rgb(34 211 255 / 50%)); animation: logo-glow 2.6s ease-in-out infinite; }
+@keyframes logo-glow { 0%, 100% { filter: drop-shadow(0 0 8px rgb(34 211 255 / 40%)); } 50% { filter: drop-shadow(0 0 16px rgb(34 211 255 / 70%)); } }
+.brand:hover .logo-img-dark { filter: drop-shadow(0 0 20px rgb(34 211 255 / 85%)); }
 
 .topbar nav a:hover { color: var(--ink); background: rgb(255 255 255 / 6%); }
 .topbar nav a[aria-current="page"] {
@@ -239,8 +237,24 @@ td { border-bottom-color: var(--grid); }
 .status.tone-idle { background: rgb(255 255 255 / 8%); color: var(--muted); }
 .cmd-line { background: rgb(0 0 0 / 35%); color: #cfe3ff; }
 
+/* Alertes, gestion, paramètres */
+.alerts-toolbar { background: rgb(5 11 31 / 78%); }
+.search, .field input, .field select, .setpoint-form input, .manage-table select, .house-picker select { background: rgb(0 0 0 / 30%); color: var(--ink); }
+.search:focus, .field input:focus, .field select:focus, .setpoint-form input:focus, .manage-table select:focus { outline-color: var(--cyan); }
+.bulk-bar { background: rgb(34 211 255 / 10%); border-color: rgb(34 211 255 / 30%); box-shadow: 0 0 22px rgb(34 211 255 / 12%); }
+.episodes tr.is-selected { background: rgb(34 211 255 / 8%); }
+.episodes input[type="checkbox"] { accent-color: var(--cyan); }
+.manage-row { background: rgb(255 255 255 / 3%); }
+.settings-link:hover, .settings-link[aria-current="page"] { color: #fff; background: rgb(34 211 255 / 14%); box-shadow: 0 0 14px rgb(34 211 255 / 25%); }
+.banner-watch { background: var(--watch-bg); color: #ffd27a; border-color: rgb(244 178 62 / 40%); }
+.room:hover { box-shadow: 0 18px 40px -12px rgb(34 211 255 / 35%); }
+.btn-primary:not(:disabled):hover { box-shadow: 0 0 32px rgb(34 211 255 / 55%); }
+
 /* Barres de défilement discrètes */
 * { scrollbar-width: thin; scrollbar-color: rgb(120 175 255 / 30%) transparent; }
 
 @media (max-width: 720px) { .logo { height: 34px; width: auto; } .kpi strong { font-size: 1.6rem; } }
 @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
+
+.password-toggle:hover { background: rgb(255 255 255 / 8%); }
+.notif-form fieldset { background: rgb(255 255 255 / 3%); }

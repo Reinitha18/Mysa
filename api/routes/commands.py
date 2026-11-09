@@ -31,7 +31,7 @@ ACTUATORS = {
         "badge_del": {"label": "Retirer un badge", "pattern": UID_PATTERN},
     },
     "esp32-cmf-01": {
-        "relay": {"label": "Lampe / prise", "values": ["on", "off"]},
+        "relay": {"label": "Prise commandée", "values": ["on", "off"]},
         "mode": {"label": "Mode du relais", "values": ["manual", "auto"]},
         "setpoint": {"label": "Consigne du thermostat (°C)", "range": [10, 40]},
     },

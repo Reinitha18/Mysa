@@ -8,7 +8,7 @@ export const DEVICES = {
   "virt-hall-01": { name: "Couloir", kind: "Détecteur de mouvement · virtuel" },
   "virt-door-01": { name: "Garage", kind: "Contact de porte · virtuel" },
   "virt-climate-01": { name: "Chambre", kind: "Thermomètre · virtuel" },
-  "virt-bulb-01": { name: "Lampe du séjour", kind: "Ampoule connectée · virtuelle" },
+  "virt-bulb-01": { name: "Prise du séjour", kind: "Prise connectée · virtuelle" },
   "virt-plug-01": { name: "Cuisine", kind: "Prise connectée · virtuelle" },
   "virt-cam-01": { name: "Jardin", kind: "Caméra · virtuelle" },
 };
@@ -22,7 +22,7 @@ export const SENSORS = {
   magnet: { label: "Porte", fmt: bool("ouverte", "fermée"), binary: true },
   temperature: { label: "Température", unit: "°C", digits: 1 },
   humidity: { label: "Humidité", unit: "%", digits: 0 },
-  bulb_state: { label: "Ampoule", fmt: bool("allumée", "éteinte"), binary: true },
+  bulb_state: { label: "Prise", fmt: bool("allumée", "éteinte"), binary: true },
   plug_power: { label: "Consommation", unit: "W", digits: 0 },
   cam_bitrate: { label: "Débit vidéo", unit: "kbit/s", digits: 0 },
   rfid: { label: "Badge", fmt: bool("autorisé", "refusé"), binary: true },
@@ -33,18 +33,25 @@ export const SENSORS = {
   relay: { label: "Prise commandée", fmt: bool("allumée", "éteinte"), binary: true },
 };
 
-export const deviceName = (id) => DEVICES[id]?.name ?? id;
-export const deviceKind = (id) => DEVICES[id]?.kind ?? "Appareil connecté";
-export const sensorLabel = (s) => SENSORS[s]?.label ?? s;
+// Noms, types, libellés et unités saisis dans la page Gestion : ils passent avant les valeurs écrites en dur.
+// Rechargés à chaque rafraîchissement des données (useMysa.js).
+let CATALOG = { devices: {}, sensors: {} };
+export function setCatalog(devices, sensorMeta) {
+  CATALOG = { devices: Object.fromEntries(devices.map((d) => [d.device_id, d])), sensors: sensorMeta || {} };
+}
 
-export function formatValue(sensor, value, unit) {
+export const deviceName = (id) => CATALOG.devices[id]?.name || DEVICES[id]?.name || id;
+export const deviceKind = (id) => CATALOG.devices[id]?.kind || DEVICES[id]?.kind || "Appareil connecté";
+export const sensorLabel = (s, deviceId) => CATALOG.sensors[deviceId]?.[s]?.label || SENSORS[s]?.label || s;
+
+export function formatValue(sensor, value, unit, deviceId) {
   if (value === null || value === undefined) return "—";
   const spec = SENSORS[sensor];
   if (spec?.fmt) return spec.fmt(value);
   if (unit === "bool") return value >= 0.5 ? "actif" : "inactif";
   const digits = spec?.digits ?? 2;
   const n = Number(value).toLocaleString("fr-FR", { maximumFractionDigits: digits, minimumFractionDigits: digits });
-  return `${n} ${spec?.unit ?? unit ?? ""}`.trim();
+  return `${n} ${CATALOG.sensors[deviceId]?.[sensor]?.unit || spec?.unit || unit || ""}`.trim();
 }
 
 export const isBinary = (sensor, unit) => SENSORS[sensor]?.binary ?? unit === "bool";

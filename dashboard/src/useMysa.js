@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { alertsSocketUrl, getDevices, getEpisodes, getHistory, getStreams } from "./api";
+import { alertsSocketUrl, getDevices, getEpisodes, getHistory, getHouses, getSensorMeta, getStreams } from "./api";
+import { setCatalog } from "./labels";
 
 const POLL_MS = 4000;
 
 // État partagé du dashboard : appareils (avec risque), flux, épisodes, dernière valeur de chaque
 // capteur, état de la connexion temps réel et notifications des nouveaux épisodes.
 export function useMysa() {
-  const [data, setData] = useState({ devices: [], streams: [], episodes: [], latest: {}, loaded: false });
+  const [data, setData] = useState({ devices: [], streams: [], episodes: [], latest: {}, houses: [], loaded: false });
   const [apiError, setApiError] = useState(null);
   const [live, setLive] = useState(false);
   const [pulse, setPulse] = useState(0);
@@ -16,7 +17,10 @@ export function useMysa() {
 
   const refresh = useCallback(async () => {
     try {
-      const [devices, streams, episodes] = await Promise.all([getDevices(), getStreams(), getEpisodes(300)]);
+      const [devices, streams, episodes, houses, sensorMeta] = await Promise.all([
+        getDevices(), getStreams(), getEpisodes(300), getHouses().catch(() => []), getSensorMeta().catch(() => ({})),
+      ]);
+      setCatalog(devices, sensorMeta); // avant setData : le rendu suivant utilise déjà les noms saisis
       const histories = await Promise.all(devices.map((d) => getHistory(d.device_id, 40).catch(() => [])));
       const latest = {};
       devices.forEach((d, i) => {
@@ -28,7 +32,7 @@ export function useMysa() {
       if (lastCount.current !== null && count > lastCount.current) setPulse((p) => p + 1);
       lastCount.current = count;
       episodes.forEach((e) => seenEpisodes.current.add(e.id));
-      setData({ devices, streams, episodes, latest, loaded: true });
+      setData({ devices, streams, episodes, latest, houses, loaded: true });
       setApiError(null);
     } catch (err) {
       setApiError(err.message || String(err));

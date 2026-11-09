@@ -46,10 +46,7 @@ export default function Validation({ go }) {
       <header className="page-head">
         <p className="eyebrow">Campagnes de validation</p>
         <h1>Lab d'attaque</h1>
-        <p className="muted">
-          Résultat des scénarios d'intrusion TI-01 à TI-05, lancés depuis la VM Kali sur le prototype. Pour chaque attaque :
-          ce qu'elle donnerait sur un système non durci, et ce qui se passe avec Mysa. Cadre autorisé uniquement : réseau de laboratoire isolé.
-        </p>
+        <p className="muted">Scénarios d'intrusion TI-01 à TI-05 lancés depuis la VM Kali, sur le réseau de laboratoire isolé.</p>
       </header>
 
       {error && <p className="error" role="alert">Impossible de lire le journal : {error}</p>}
@@ -92,14 +89,13 @@ export default function Validation({ go }) {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>TI</th><th>Attaque</th><th>Sans Mysa</th><th>Avec Mysa</th><th>Observations</th></tr>
+                <tr><th>TI</th><th>Attaque</th><th>Résultat</th><th>Observations</th></tr>
               </thead>
               <tbody>
                 {run.results.map((r) => (
                   <tr key={r.ti}>
                     <td className="mono">{r.ti}</td>
                     <td>{r.name}</td>
-                    <td className="small">{r.before ?? <span className="muted">—</span>}</td>
                     <td><Verdict r={r} /></td>
                     <td className="small">{r.note ?? <span className="muted">—</span>}</td>
                   </tr>
@@ -124,7 +120,7 @@ export default function Validation({ go }) {
                       <button className="link strong" onClick={() => go(`/appareil/${encodeURIComponent(e.device_id)}`)}>
                         {deviceName(e.device_id)}
                       </button>{" "}
-                      — {e.sensor ? `${sensorLabel(e.sensor).toLowerCase()} : ` : ""}{describeEpisode(e)}
+                      — {e.sensor ? `${sensorLabel(e.sensor, e.device_id).toLowerCase()} : ` : ""}{describeEpisode(e)}
                     </p>
                     <span className="muted">
                       Gravité {(SEVERITY_LABEL[e.severity] ?? e.severity).toLowerCase()} · {e.alert_count > 1 ? `${e.alert_count} alertes regroupées` : "1 alerte"}

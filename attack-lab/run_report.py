@@ -154,7 +154,7 @@ def main():
         try:
             print(f"Campagne n° {push_run(cfg, started, finished, journal)} enregistrée dans le journal de validation du dashboard.")
         except Exception as err:  # le rapport Markdown reste produit : l'envoi est un plus
-            print(f"⚠️  Journal de validation non mis à jour ({err}). Mot de passe : DASHBOARD_PASSWORD dans lab.env.")
+            print(f"⚠️  Journal de validation non mis à jour ({err}). Accès : DASHBOARD_EMAIL / DASHBOARD_PASSWORD dans lab.env.")
 
 
 if __name__ == "__main__":

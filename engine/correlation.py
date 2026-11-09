@@ -41,7 +41,7 @@ CORROBORATE_S = 30         # PIR et caméra dans cette fenêtre = présence conf
 ACCESS_HISTORY_DAYS = 30   # profondeur d'apprentissage des heures d'accès habituelles
 MIN_ACCESS_HISTORY = 20    # en-deçà, on n'a pas encore appris : on s'en remet à QUIET_HOURS
 UNUSUAL_HOUR_MAX_RATE = 0.05  # une heure vue dans <= 5 % des accès récents est inhabituelle
-QUIET_HOURS = set(range(0, 6))  # 0 h à 5 h : heures creuses par défaut (avant apprentissage)
+QUIET_HOURS = set(range(23, 5))  # 23 h à 5 h : heures creuses par défaut (avant apprentissage)
 
 # Les horodatages sont en UTC ; l'heure « locale » sert à juger une heure d'accès.
 # Madagascar : UTC+3. Ajustable par la variable d'environnement MYSA_UTC_OFFSET_H.

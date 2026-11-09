@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from engine.storage import list_episodes, set_episode_ack
 
@@ -9,6 +9,10 @@ router = APIRouter()
 class Ack(BaseModel):
     acknowledged: bool = True
     note: str | None = None
+
+
+class AckMany(Ack):
+    ids: list[int] = Field(min_length=1, max_length=500)
 
 
 @router.get("")
@@ -26,3 +30,12 @@ def ack_episode(episode_id: int, ack: Ack = Ack()):
     if episode is None:
         raise HTTPException(status_code=404, detail=f"Épisode inconnu : {episode_id}")
     return episode
+
+
+@router.post("/ack")
+def ack_episodes(body: AckMany):
+    """Acquitte (ou rouvre) plusieurs épisodes d'un coup, depuis la sélection du dashboard. Les épisodes
+    inconnus sont signalés dans « missing » sans bloquer les autres."""
+    missing = [i for i in dict.fromkeys(body.ids)
+               if set_episode_ack(i, acknowledged=body.acknowledged, note=body.note) is None]
+    return {"updated": len(set(body.ids)) - len(missing), "missing": missing}

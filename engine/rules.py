@@ -20,6 +20,7 @@ log = logging.getLogger("mysa.rules")
 # Plages physiques des capteurs (DHT22 : -40..80 °C, 0..100 %)
 PHYSICAL_RANGE = {"temperature": (-40.0, 80.0), "humidity": (0.0, 100.0)}
 TEMP_HIGH_C = 45.0            # au-delà : risque d'incendie / surchauffe
+TEMP_LOW_C = 5.0              # en dessous : risque de gel (canalisations, capteur sorti en hiver)
 TEMP_JUMP_C = 5.0             # variation max plausible...
 TEMP_JUMP_WINDOW_S = 60       # ...sur cette durée
 REFUSED_BURST = 3             # badges refusés...
@@ -60,6 +61,10 @@ def evaluate(device_id: str, sensor: str, value: float, unit: str | None, ts: st
             out.append(_alert(device_id, sensor, ts, "surchauffe",
                               f"Température très élevée sur {device_id} : {value:.1f} °C "
                               "(risque d'incendie ou de surchauffe)", "high"))
+        elif value <= TEMP_LOW_C:
+            out.append(_alert(device_id, sensor, ts, "grand froid",
+                              f"Température très basse sur {device_id} : {value:.1f} °C "
+                              "(risque de gel, fenêtre ouverte ou capteur sorti)", "high"))
         since = (_parse(ts) - timedelta(seconds=TEMP_JUMP_WINDOW_S)).isoformat()
         previous = [r["value"] for r in recent_values(device_id, sensor, since)[:-1]]
         if previous and max(abs(value - p) for p in previous) > TEMP_JUMP_C:

@@ -10,7 +10,8 @@ Configuration par variables d'environnement (voir attack-lab/lab.env.example) :
   CA_CERT       chemin du certificat de la CA Mysa (pour établir le TLS ; le reste — auth, ACL —
                 est la vraie barrière). Vide = TLS sans vérification de la chaîne.
   API_BASE      base de l'API pour MESURER la détection côté défenseur (défaut https://<host>:8000)
-  DASHBOARD_PASSWORD   mot de passe du dashboard (MYSA_DASHBOARD_PASSWORD du hub), si l'API est protégée :
+  DASHBOARD_EMAIL      adresse e-mail d'un compte du dashboard (vide : ancien mot de passe unique du hub)
+  DASHBOARD_PASSWORD   mot de passe de ce compte (ou MYSA_DASHBOARD_PASSWORD du hub), si l'API est protégée :
                 lecture de la détection et envoi du résultat de la campagne au journal de validation.
   STOLEN_USER / STOLEN_PASSWORD   identifiants d'un nœud supposé compromis (défaut esp32-sec-01),
                 pour les scénarios qui exigent un accès authentifié (injection, saturation).
@@ -37,6 +38,7 @@ def load_cfg() -> dict:
         "mqtt_port": int(os.getenv("MQTT_PORT", "8883")),
         "ca_cert": os.getenv("CA_CERT") or None,
         "api_base": os.getenv("API_BASE", f"https://{host}:8000"),
+        "dashboard_email": os.getenv("DASHBOARD_EMAIL") or None,
         "dashboard_password": os.getenv("DASHBOARD_PASSWORD") or None,
         "stolen_user": os.getenv("STOLEN_USER", "esp32-sec-01"),
         "stolen_password": os.getenv("STOLEN_PASSWORD", "change-me"),
@@ -127,7 +129,8 @@ def _api_opener(cfg: dict):
         _opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ctx),
                                               urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
         if cfg.get("dashboard_password"):
-            api_post(cfg, "/api/auth/login", {"password": cfg["dashboard_password"]}, _opener=_opener)
+            api_post(cfg, "/api/auth/login", {"email": cfg.get("dashboard_email"), "password": cfg["dashboard_password"]},
+                     _opener=_opener)
     return _opener
 
 

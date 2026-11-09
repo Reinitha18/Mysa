@@ -150,3 +150,77 @@ def test_journal_de_validation_des_campagnes():
         assert runs[0]["summary"] == {"blocked": 1, "detected": 1, "undetected": 1, "not_run": 0}
         assert runs[0]["results"][1]["delay_s"] == 8.5
         assert [e["device_id"] for e in runs[0]["episodes"]] == ["esp32-sec-01"] and len(runs[0]["episodes"]) == 1
+
+
+def test_gestion_maisons_appareils_capteurs():
+    record_message("esp32-sec-01", "pir", 0, "bool")
+    record_message("esp32-sec-01", "temperature", 21.0, "°C")
+    with TestClient(app) as client:
+        # Une maison par défaut existe ; elle compte l'appareil sans fiche.
+        houses = client.get("/api/houses").json()
+        assert [h["name"] for h in houses] == ["Ma maison"] and houses[0]["device_count"] == 1
+        home = houses[0]["id"]
+        second = client.post("/api/houses", json={"name": "  Maison de campagne ", "address": "12 rue des Lilas"}).json()
+        assert second["name"] == "Maison de campagne" and client.post("/api/houses", json={"name": "  "}).status_code == 422
+        assert client.put(f"/api/houses/{second['id']}", json={"name": "Chalet"}).json()["name"] == "Chalet"
+        # Déclarer un appareil : visible tout de suite, « en attente » du premier message.
+        body = {"device_id": "prise-salon", "name": "Prise du salon", "kind": "Prise commandée", "house_id": second["id"]}
+        assert client.post("/api/devices", json=body).status_code == 201
+        assert client.post("/api/devices", json=body).status_code == 409
+        assert client.post("/api/devices", json={**body, "device_id": "mauvais id!"}).status_code == 422
+        assert client.post("/api/devices", json={**body, "device_id": "autre", "house_id": 999}).status_code == 422
+        devices = {d["device_id"]: d for d in client.get("/api/devices").json()}
+        prise = devices["prise-salon"]
+        assert prise["waiting"] and prise["name"] == "Prise du salon" and prise["house_id"] == second["id"] and prise["label"] == "En attente"
+        assert devices["esp32-sec-01"]["house_id"] == home and not devices["esp32-sec-01"]["registered"]
+        # Renommer un appareil découvert par le moteur.
+        assert client.put("/api/devices/esp32-sec-01", json={"name": "Entrée"}).json()["name"] == "Entrée"
+        assert client.put("/api/devices/inconnu", json={"name": "x"}).status_code == 404
+        # Capteurs : libellé d'un capteur découvert, déclaration d'un nouveau, suppression avec ses mesures.
+        assert client.put("/api/devices/esp32-sec-01/sensors/temperature", json={"label": "Température entrée"}).status_code == 200
+        assert client.post("/api/devices/esp32-sec-01/sensors", json={"sensor": "temperature"}).status_code == 409
+        assert client.post("/api/devices/esp32-sec-01/sensors", json={"sensor": "co2", "label": "CO2", "unit": "ppm"}).status_code == 201
+        sensors = {s["sensor"]: s for s in client.get("/api/devices/esp32-sec-01/sensors").json()}
+        assert sensors["temperature"]["label"] == "Température entrée" and sensors["co2"]["discovered"] is False
+        assert client.get("/api/devices/sensor-meta").json()["esp32-sec-01"]["co2"]["unit"] == "ppm"
+        assert client.delete("/api/devices/esp32-sec-01/sensors/temperature").json()["measurements"] == 1
+        assert [s["sensor"] for s in client.get("/api/devices/esp32-sec-01/sensors").json()] == ["co2", "pir"]
+        # Supprimer une maison déplace ses appareils vers la première ; la dernière maison est protégée.
+        assert client.delete(f"/api/houses/{second['id']}").status_code == 200
+        assert {d["device_id"]: d["house_id"] for d in client.get("/api/devices").json()}["prise-salon"] == home
+        assert client.delete(f"/api/houses/{home}").status_code == 409
+        # Supprimer un appareil efface aussi son historique.
+        assert client.delete("/api/devices/esp32-sec-01").json()["measurements"] == 1
+        assert [d["device_id"] for d in client.get("/api/devices").json()] == ["prise-salon"]
+        assert client.get("/api/devices/esp32-sec-01/sensors").status_code == 404
+
+
+def test_acquittement_groupe_des_episodes():
+    for i in range(3):
+        insert_alert("esp32-sec-01", f"a{i}", severity="high", sensor=f"s{i}", kind="anomaly", ts="2020-01-01T00:00:00+00:00")
+    with TestClient(app) as client:
+        ids = [e["id"] for e in client.get("/api/episodes").json()]
+        assert len(ids) == 3
+        r = client.post("/api/episodes/ack", json={"ids": ids[:2] + [9999], "note": "vérifié"}).json()
+        assert r == {"updated": 2, "missing": [9999]}
+        acked = {e["id"]: e["acknowledged"] for e in client.get("/api/episodes").json()}
+        assert [acked[i] for i in ids] == [True, True, False] or sorted(acked.values()) == [False, True, True]
+        assert client.post("/api/episodes/ack", json={"ids": ids[:1], "acknowledged": False}).json()["updated"] == 1
+        assert client.post("/api/episodes/ack", json={"ids": []}).status_code == 422
+
+
+def test_configuration_des_notifications(monkeypatch):
+    with TestClient(app) as client:
+        assert client.get("/api/notifications/settings").json()["smtp_password"] is False
+        body = {"smtp_host": "smtp.gmail.com", "smtp_user": "a@b.com", "smtp_password": "s3cret",
+                "smtp_from": "a@b.com", "smtp_to": "moi@x.com"}
+        r = client.put("/api/notifications/settings", json=body).json()
+        assert r["smtp_host"] == "smtp.gmail.com" and r["smtp_password"] is True
+        assert client.get("/api/notifications").json()["channels"]["e-mail"] is True
+        # Un mot de passe vide à l'enregistrement ne doit pas effacer celui déjà stocké.
+        client.put("/api/notifications/settings", json={"smtp_password": ""})
+        assert client.get("/api/notifications/settings").json()["smtp_password"] is True
+        # Un champ texte vide efface bien la valeur stockée.
+        client.put("/api/notifications/settings", json={"smtp_to": ""})
+        assert client.get("/api/notifications/settings").json()["smtp_to"] == ""
+        assert client.get("/api/notifications").json()["channels"]["e-mail"] is False

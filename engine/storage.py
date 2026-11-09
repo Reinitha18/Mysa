@@ -12,6 +12,7 @@ Les deux processus pointent vers le même fichier via la variable DB_PATH.
 
 import os
 import sqlite3
+import secrets
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -140,6 +141,43 @@ CREATE TABLE IF NOT EXISTS attack_results (
 );
 CREATE INDEX IF NOT EXISTS idx_attack_results_run ON attack_results (run_id);
 
+-- Comptes du dashboard (connexion par e-mail). Le mot de passe n'est jamais conservé : seulement son
+-- empreinte salée (PBKDF2-SHA256, voir api/auth.py), impossible à inverser.
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_ts TEXT NOT NULL
+);
+-- Réglages internes (clé de signature des sessions, générée au premier démarrage).
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+-- Gestion de la maison : maisons, puis nom / type / maison de chaque appareil et libellé de chaque capteur.
+-- Un appareil sans fiche (house_id NULL) appartient à la première maison.
+CREATE TABLE IF NOT EXISTS houses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    address TEXT,
+    created_ts TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS device_meta (
+    device_id TEXT PRIMARY KEY,
+    house_id INTEGER,
+    name TEXT,
+    kind TEXT,
+    created_ts TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS sensor_meta (
+    device_id TEXT NOT NULL,
+    sensor TEXT NOT NULL,
+    label TEXT,
+    unit TEXT,
+    PRIMARY KEY (device_id, sensor)
+);
+
 CREATE INDEX IF NOT EXISTS idx_telemetry_device ON telemetry (device_id, ts);
 CREATE INDEX IF NOT EXISTS idx_alerts_device ON alerts (device_id, ts);
 CREATE INDEX IF NOT EXISTS idx_telemetry_stream ON telemetry (device_id, sensor, ts);
@@ -186,6 +224,8 @@ def init_db():
     par une version précédente. À appeler au démarrage de l'API et du moteur."""
     with get_connection() as conn:
         conn.executescript(SCHEMA)
+        conn.execute("INSERT INTO houses (name, created_ts) SELECT 'Ma maison', ? "
+                     "WHERE NOT EXISTS (SELECT 1 FROM houses)", (datetime.now(timezone.utc).isoformat(),))
         for table, columns in (("alerts", ALERT_EXTRA_COLUMNS), ("episodes", EPISODE_EXTRA_COLUMNS)):
             existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
             for column, decl in columns.items():
@@ -599,3 +639,172 @@ def list_attack_runs(limit: int = 10) -> list[dict]:
                 "SELECT ti, name, before, status, delay_s, note FROM attack_results WHERE run_id = ? ORDER BY id",
                 (run["id"],))]
     return runs
+
+
+# ---------- Comptes ----------
+def _utcnow() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def create_user(email: str, password_hash: str) -> dict:
+    """Crée un compte (sqlite3.IntegrityError si l'e-mail existe déjà)."""
+    with get_connection() as conn:
+        cur = conn.execute("INSERT INTO users (email, password_hash, created_ts) VALUES (?, ?, ?)",
+                           (email, password_hash, _utcnow()))
+        return {"id": cur.lastrowid, "email": email}
+
+
+def get_user_by_email(email: str) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_user(user_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def list_users() -> list[dict]:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute("SELECT id, email, created_ts FROM users ORDER BY id")]
+
+
+def count_users() -> int:
+    with get_connection() as conn:
+        return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+
+def set_user_password(user_id: int, password_hash: str):
+    with get_connection() as conn:
+        conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+
+
+def delete_user(user_id: int) -> bool:
+    with get_connection() as conn:
+        return conn.execute("DELETE FROM users WHERE id = ?", (user_id,)).rowcount > 0
+
+
+def get_app_setting(key: str) -> str | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else None
+
+
+def set_app_setting(key: str, value: str):
+    with get_connection() as conn:
+        conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                     "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+
+
+def get_secret() -> str:
+    """Clé de signature des sessions : tirée au hasard au premier appel, puis conservée en base."""
+    with get_connection() as conn:
+        conn.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('session_secret', ?)",
+                     (secrets.token_hex(32),))
+        return conn.execute("SELECT value FROM app_settings WHERE key = 'session_secret'").fetchone()[0]
+
+
+# ---------- Maisons, appareils, capteurs (gestion) ----------
+def _upsert(conn, table: str, keys: dict, fields: dict, on_insert: dict | None = None):
+    """INSERT ... ON CONFLICT DO UPDATE : seuls les champs fournis sont modifiés. Les noms de colonnes
+    viennent du code appelant (listes blanches), jamais de la requête."""
+    cols = {**keys, **(on_insert or {}), **fields}
+    sql = (f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)}) "
+           f"ON CONFLICT({', '.join(keys)}) DO ")
+    sql += ("UPDATE SET " + ", ".join(f"{c} = excluded.{c}" for c in fields)) if fields else "NOTHING"
+    conn.execute(sql, list(cols.values()))
+
+
+def list_houses() -> list[dict]:
+    with get_connection() as conn:
+        return [dict(r) for r in conn.execute("SELECT * FROM houses ORDER BY id")]
+
+
+def default_house_id() -> int | None:
+    with get_connection() as conn:
+        return conn.execute("SELECT MIN(id) FROM houses").fetchone()[0]
+
+
+def get_house(house_id: int) -> dict | None:
+    with get_connection() as conn:
+        row = conn.execute("SELECT * FROM houses WHERE id = ?", (house_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def create_house(name: str, address: str | None = None) -> dict:
+    with get_connection() as conn:
+        cur = conn.execute("INSERT INTO houses (name, address, created_ts) VALUES (?, ?, ?)", (name, address, _utcnow()))
+    return get_house(cur.lastrowid)
+
+
+def update_house(house_id: int, fields: dict) -> dict | None:
+    fields = {k: v for k, v in fields.items() if k in ("name", "address")}
+    if fields:
+        with get_connection() as conn:
+            conn.execute(f"UPDATE houses SET {', '.join(f'{c} = ?' for c in fields)} WHERE id = ?",
+                         [*fields.values(), house_id])
+    return get_house(house_id)
+
+
+def delete_house(house_id: int) -> bool:
+    """Supprime la maison ; ses appareils ne sont pas supprimés, ils passent à la première maison."""
+    with get_connection() as conn:
+        conn.execute("UPDATE device_meta SET house_id = NULL WHERE house_id = ?", (house_id,))
+        return conn.execute("DELETE FROM houses WHERE id = ?", (house_id,)).rowcount > 0
+
+
+def list_device_meta() -> dict[str, dict]:
+    with get_connection() as conn:
+        return {r["device_id"]: dict(r) for r in conn.execute("SELECT * FROM device_meta")}
+
+
+def upsert_device_meta(device_id: str, fields: dict):
+    fields = {k: v for k, v in fields.items() if k in ("name", "kind", "house_id")}
+    with get_connection() as conn:
+        _upsert(conn, "device_meta", {"device_id": device_id}, fields, {"created_ts": _utcnow()})
+
+
+def device_known(device_id: str) -> bool:
+    """Appareil déclaré dans le dashboard, ou déjà vu par le moteur."""
+    with get_connection() as conn:
+        return bool(conn.execute("SELECT 1 FROM device_meta WHERE device_id = ? UNION ALL "
+                                 "SELECT 1 FROM telemetry WHERE device_id = ? LIMIT 1", (device_id, device_id)).fetchone())
+
+
+DEVICE_TABLES = ("telemetry", "alerts", "episodes", "streams", "presence", "simulated", "access_log",
+                 "sensor_meta", "device_meta")
+
+
+def delete_device(device_id: str) -> int:
+    """Supprime l'appareil et tout son historique (mesures, alertes, épisodes, flux). Retourne le nombre
+    de mesures effacées. S'il publie encore, le moteur le re-découvrira comme un nouvel appareil."""
+    with get_connection() as conn:
+        n = conn.execute("SELECT COUNT(*) FROM telemetry WHERE device_id = ?", (device_id,)).fetchone()[0]
+        for table in DEVICE_TABLES:
+            conn.execute(f"DELETE FROM {table} WHERE device_id = ?", (device_id,))
+    return n
+
+
+def list_sensor_meta() -> dict[str, dict[str, dict]]:
+    out: dict[str, dict[str, dict]] = {}
+    with get_connection() as conn:
+        for r in conn.execute("SELECT * FROM sensor_meta"):
+            out.setdefault(r["device_id"], {})[r["sensor"]] = {"label": r["label"], "unit": r["unit"]}
+    return out
+
+
+def upsert_sensor_meta(device_id: str, sensor: str, fields: dict):
+    fields = {k: v for k, v in fields.items() if k in ("label", "unit")}
+    with get_connection() as conn:
+        _upsert(conn, "sensor_meta", {"device_id": device_id, "sensor": sensor}, fields)
+
+
+def delete_sensor(device_id: str, sensor: str) -> int:
+    """Supprime le capteur : sa fiche, son flux, ses mesures, ses alertes et ses épisodes."""
+    with get_connection() as conn:
+        n = conn.execute("SELECT COUNT(*) FROM telemetry WHERE device_id = ? AND sensor = ?", (device_id, sensor)).fetchone()[0]
+        for table in ("telemetry", "alerts", "episodes", "streams", "sensor_meta"):
+            conn.execute(f"DELETE FROM {table} WHERE device_id = ? AND sensor = ?", (device_id, sensor))
+    return n

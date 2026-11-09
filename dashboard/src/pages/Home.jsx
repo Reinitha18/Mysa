@@ -31,24 +31,30 @@ function Room({ device, latest, streams, onOpen }) {
         <h3>{deviceName(device.device_id)}</h3>
         <p className="room-kind">{deviceKind(device.device_id)}</p>
       </div>
-      <dl className="readings">
-        {readings.map((r) => (
-          <div key={r.sensor} className={silent.includes(r.sensor) ? "is-silent" : ""}>
-            <dt>{sensorLabel(r.sensor)}</dt>
-            <dd>{formatValue(r.sensor, r.value, r.unit)}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="room-foot">
-        <span>
-          {device.online === false ? <span className="offline">hors ligne · </span> : null}
-          Vu {ago(device.last_seen)}
-        </span>
-        <span className="risk" title="Score de risque sur 100">
-          risque <span className="mono">{device.risk}</span>
-          <span className="risk-bar"><i style={{ width: `${device.risk}%` }} /></span>
-        </span>
-      </div>
+      {device.waiting ? (
+        <p className="muted small room-wait">Déclaré : en attente de son premier message.</p>
+      ) : (
+        <dl className="readings">
+          {readings.map((r) => (
+            <div key={r.sensor} className={silent.includes(r.sensor) ? "is-silent" : ""}>
+              <dt>{sensorLabel(r.sensor, device.device_id)}</dt>
+              <dd>{formatValue(r.sensor, r.value, r.unit, device.device_id)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {!device.waiting && (
+        <div className="room-foot">
+          <span>
+            {device.online === false ? <span className="offline">hors ligne · </span> : null}
+            Vu {ago(device.last_seen)}
+          </span>
+          <span className="risk" title="Score de risque sur 100">
+            risque <span className="mono">{device.risk}</span>
+            <span className="risk-bar"><i style={{ width: `${device.risk}%` }} /></span>
+          </span>
+        </div>
+      )}
     </button>
   );
 }
@@ -59,7 +65,6 @@ export default function Home({ mysa, go }) {
   const { title, sub } = headline(devices, tone, worst);
   const active = streams.filter((s) => !s.silent).length;
   const recent = episodes.filter((e) => e.kind !== "notice").slice(0, 8);
-  const lastAlert = recent[0];
 
   return (
     <div className="home">
@@ -68,14 +73,7 @@ export default function Home({ mysa, go }) {
         <div className="house-body">
           <div className="house-intro">
             <h1 id="house-title">{title}</h1>
-            <p className="house-sub">
-              {sub ?? (
-                <>
-                  {devices.length} appareils · {active} capteurs actifs sur {streams.length}
-                  {lastAlert ? <> · dernière alerte {ago(lastAlert.end_ts)}</> : <> · aucune alerte</>}
-                </>
-              )}
-            </p>
+            {sub && <p className="house-sub">{sub}</p>}
           </div>
           <div className="kpis">
             {[
@@ -119,7 +117,7 @@ export default function Home({ mysa, go }) {
                   <button className="link strong" onClick={() => go(`/appareil/${encodeURIComponent(e.device_id)}`)}>
                     {deviceName(e.device_id)}
                   </button>{" "}
-                  — {sensorLabel(e.sensor).toLowerCase()} : {describeEpisode(e)}
+                  — {sensorLabel(e.sensor, e.device_id).toLowerCase()} : {describeEpisode(e)}
                 </p>
                 <span className="muted">
                   {e.alert_count > 1 ? `${e.alert_count} alertes regroupées` : "1 alerte"}

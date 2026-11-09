@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from engine.storage import init_db, list_alerts, max_alert_id
 from api import auth
-from api.routes import badges, camera, devices, alerts, commands, episodes, notifications, streams, validation
+from api.routes import badges, camera, devices, alerts, commands, episodes, houses, notifications, streams, validation
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DASHBOARD_DIST = os.path.join(ROOT, "dashboard", "dist")
@@ -60,6 +60,7 @@ def root():
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(houses.router, prefix="/api/houses", tags=["houses"])
 app.include_router(devices.router, prefix="/api/devices", tags=["devices"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
 app.include_router(episodes.router, prefix="/api/episodes", tags=["episodes"])

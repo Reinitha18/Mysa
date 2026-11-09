@@ -50,7 +50,7 @@ function Toast({ alert, onClose, go }) {
     <div className={`toast tone-${tone}`}>
       <div>
         <strong>{title} · {deviceName(alert.device_id)}</strong>
-        <p>{sensorLabel(alert.sensor)} : {describeEpisode(alert)}</p>
+        <p>{sensorLabel(alert.sensor, alert.device_id)} : {describeEpisode(alert)}</p>
       </div>
       <div className="toast-actions">
         <button className="link" onClick={() => { go(`/appareil/${encodeURIComponent(alert.device_id)}`); onClose(); }}>

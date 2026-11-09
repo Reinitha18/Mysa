@@ -23,7 +23,7 @@ const bool DOOR_IS_BUTTON = false;  // true : bouton (appui = ouverte) ; false :
 const int LOCK_CLOSED = 0, LOCK_OPEN = 90;      // angles du servo (degrés)
 
 const unsigned long PIR_PERIOD_MS = 2000;
-const unsigned long UNLOCK_MS     = 5000;       // durée d'ouverture de la serrure
+const unsigned long UNLOCK_MS     = 10000;       // durée d'ouverture de la serrure
 const unsigned long ENTRY_MS      = 60000;      // fenêtre d'entrée après un badge valide
 const unsigned long ALARM_MS      = 60000;      // durée max de la sirène
 const unsigned long EXIT_MS       = 30000;      // délai de sortie après armement

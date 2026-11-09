@@ -63,10 +63,6 @@ export default function Badges({ mysa, go }) {
       <header className="page-head">
         <p className="eyebrow">Contrôle d'accès</p>
         <h1>Badges autorisés</h1>
-        <p className="muted">
-          Les badges qui ouvrent la porte et désarment l'alarme au lecteur de l'entrée. Ajouter ou retirer un badge
-          envoie la commande au nœud, qui la garde même après une coupure de courant.
-        </p>
       </header>
 
       {error && <p className="error" role="alert">Impossible de lire les badges : {error}</p>}
@@ -75,7 +71,6 @@ export default function Badges({ mysa, go }) {
       {data && (
         <div className="kpis">
           <div className="kpi"><strong>{data.node_count ?? "—"}</strong><span className="kpi-label">Badges comptés par le lecteur{data.node_ts ? ` · ${ago(data.node_ts)}` : ""}</span></div>
-          <div className="kpi"><strong>{data.known_count}</strong><span className="kpi-label">Badges listés ici</span></div>
         </div>
       )}
       {gap && (

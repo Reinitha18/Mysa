@@ -42,7 +42,7 @@ python3 attack-lab/scenarios/ti03_usurpation.py               # un scénario iso
 
 La campagne est aussi **journalisée dans le dashboard** (page « Validation » : résultat de chaque TI, délai de
 détection, alertes levées par Mysa pendant l'attaque) ; `--no-push` désactive cet envoi. Si le dashboard est
-protégé par mot de passe, renseigner `DASHBOARD_PASSWORD` dans `lab.env`.
+protégé par mot de passe, renseigner `DASHBOARD_EMAIL` et `DASHBOARD_PASSWORD` dans `lab.env` (un compte du dashboard ; sans e-mail, l'ancien mot de passe unique).
 
 Le rapport `report.md` indique, pour chaque TI : résultat **avant** (système non durci, analyse du
 chapitre 4) et **après** (mesuré : bloqué / détecté avec délai / exécuté non détecté).

@@ -22,6 +22,12 @@ export const ackEpisode = (episodeId, acknowledged = true, note) =>
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ acknowledged, note }),
   });
+export const ackEpisodes = (ids, acknowledged = true, note) =>
+  json("/api/episodes/ack", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, acknowledged, note }),
+  });
 export const getHistory = (deviceId, limit = 400, sensor) =>
   json(`/api/devices/${encodeURIComponent(deviceId)}/history?limit=${limit}${sensor ? `&sensor=${encodeURIComponent(sensor)}` : ""}`);
 export const getRisk = (deviceId) => json(`/api/devices/${encodeURIComponent(deviceId)}/risk`);
@@ -41,10 +47,38 @@ export const sendCommand = (device_id, actuator, value) =>
 const post = (path, body) =>
   json(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
 
+const send = (method) => (path, body) =>
+  json(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body ?? {}) });
+const put = send("PUT");
+const del = (path) => json(path, { method: "DELETE" });
+const enc = encodeURIComponent;
+
+// Comptes : e-mail + mot de passe (sans e-mail : ancien mot de passe unique du hub).
 export const getAuthStatus = () => json("/api/auth/status");
-export const login = (password) => post("/api/auth/login", { password });
+export const login = (password, email) => post("/api/auth/login", { email: email || undefined, password });
 export const logout = () => post("/api/auth/logout");
+export const register = (email, password) => post("/api/auth/register", { email, password });
+export const changePassword = (current, next) => post("/api/auth/password", { current, new: next });
+export const getUsers = () => json("/api/auth/users");
+export const deleteUser = (id) => del(`/api/auth/users/${id}`);
+
+// Gestion : maisons, appareils, capteurs.
+export const getHouses = () => json("/api/houses");
+export const createHouse = (body) => post("/api/houses", body);
+export const updateHouse = (id, body) => put(`/api/houses/${id}`, body);
+export const deleteHouse = (id) => del(`/api/houses/${id}`);
+export const createDevice = (body) => post("/api/devices", body);
+export const updateDevice = (id, body) => put(`/api/devices/${enc(id)}`, body);
+export const deleteDevice = (id) => del(`/api/devices/${enc(id)}`);
+export const getSensorMeta = () => json("/api/devices/sensor-meta");
+export const getSensors = (deviceId) => json(`/api/devices/${enc(deviceId)}/sensors`);
+export const createSensor = (deviceId, body) => post(`/api/devices/${enc(deviceId)}/sensors`, body);
+export const updateSensor = (deviceId, sensor, body) => put(`/api/devices/${enc(deviceId)}/sensors/${enc(sensor)}`, body);
+export const deleteSensor = (deviceId, sensor) => del(`/api/devices/${enc(deviceId)}/sensors/${enc(sensor)}`);
 export const getNotifications = () => json("/api/notifications");
+export const getNotificationSettings = () => json("/api/notifications/settings");
+export const saveNotificationSettings = (body) =>
+  json("/api/notifications/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 export const testNotifications = () => post("/api/notifications/test");
 
 export function alertsSocketUrl() {

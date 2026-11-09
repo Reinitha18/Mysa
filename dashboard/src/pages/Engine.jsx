@@ -1,5 +1,4 @@
 import { REGIMES, ago, deviceName, sensorLabel } from "../labels";
-import NotificationsPanel from "../components/NotificationsPanel";
 
 const N_LOCAL_MIN = 40;
 
@@ -63,7 +62,7 @@ export default function Engine({ mysa, go }) {
                       {deviceName(s.device_id)}
                     </button>
                   </td>
-                  <td>{sensorLabel(s.sensor)} <span className="mono muted small">{s.sensor}</span></td>
+                  <td>{sensorLabel(s.sensor, s.device_id)} <span className="mono muted small">{s.sensor}</span></td>
                   <td>{s.category ?? <span className="muted">aucune</span>}</td>
                   <td><span className={`regime regime-${s.regime}`}>{REGIMES[s.regime]?.label ?? s.regime}</span></td>
                   <td>
@@ -79,8 +78,6 @@ export default function Engine({ mysa, go }) {
           </tbody>
         </table>
       </div>
-
-      <NotificationsPanel />
 
       <section className="detectors" aria-labelledby="det-title">
         <h2 id="det-title">Ce qui déclenche une alerte</h2>
